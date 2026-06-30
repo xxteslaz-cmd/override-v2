@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__Claude_Preview__preview_start",
+      "Bash(kill 72905)",
+      "Bash(curl -s \"http://localhost:3000/api/search?q=ryzen+9+7900x&category=cpu\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" \"https://www.newegg.com/p/pl?N=100007671&d=ryzen+9+7900x&PageSize=20\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(d.get\\('content','ERROR'\\), d.get\\('error',''\\)\\)\")"
+    ]
+  }
+}
