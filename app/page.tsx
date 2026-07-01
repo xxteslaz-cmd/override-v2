@@ -163,6 +163,46 @@ function gpuPairingNote(gpu: GPUPart, cpu?: CPUPart) {
   return                       { icon: "!", text: "CPU may bottleneck this GPU", color: "#f59e0b" };
 }
 
+// ─── Affiliate buy links — swap these URLs for your affiliate links ───────────
+// To add affiliate tags: replace the URLs below with your tracked links.
+// e.g. amazon: `https://www.amazon.com/s?k=...&tag=YOUR-TAG`
+//      newegg: `https://www.newegg.com/p/pl?d=...&nm_mc=AFC-C8Junction&cm_mmc=AFC-C8Junction-_-na-_-na-_-na&cm_sp=&AID=YOUR-ID`
+
+function buyUrls(name: string, neweggDirectUrl?: string) {
+  return {
+    newegg: neweggDirectUrl ?? `https://www.newegg.com/p/pl?d=${encodeURIComponent(name)}`,
+    amazon: `https://www.amazon.com/s?k=${encodeURIComponent(name)}`,
+  };
+}
+
+function BuyButtons({ name, neweggUrl }: { name: string; neweggUrl?: string }) {
+  const urls = buyUrls(name, neweggUrl);
+  return (
+    <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+      <a href={urls.newegg} target="_blank" rel="noopener noreferrer"
+        onClick={e => e.stopPropagation()}
+        style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 10px",
+          borderRadius: 6, fontSize: 11, fontWeight: 600, textDecoration: "none",
+          background: "rgba(251,146,60,0.1)", color: "#fb923c",
+          border: "1px solid rgba(251,146,60,0.25)", transition: "background 0.12s" }}
+        onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = "rgba(251,146,60,0.2)")}
+        onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = "rgba(251,146,60,0.1)")}>
+        Newegg ↗
+      </a>
+      <a href={urls.amazon} target="_blank" rel="noopener noreferrer"
+        onClick={e => e.stopPropagation()}
+        style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 10px",
+          borderRadius: 6, fontSize: 11, fontWeight: 600, textDecoration: "none",
+          background: "rgba(255,153,0,0.1)", color: "#ffa500",
+          border: "1px solid rgba(255,153,0,0.25)", transition: "background 0.12s" }}
+        onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = "rgba(255,153,0,0.2)")}
+        onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = "rgba(255,153,0,0.1)")}>
+        Amazon ↗
+      </a>
+    </div>
+  );
+}
+
 // ─── Design tokens ────────────────────────────────────────────────────────────
 
 const T = {
@@ -322,13 +362,10 @@ function PartModal({ slot, selected, onSelect, onClose }: {
                           {note.icon} {note.text}
                         </p>
                       )}
-                      {isSearchResult && (
-                        <a href={(part as SearchResult).url} target="_blank" rel="noopener noreferrer"
-                          onClick={e => e.stopPropagation()}
-                          style={{ fontSize: 11, color: T.accent, textDecoration: "none", marginTop: 4, display: "inline-block" }}>
-                          View on Newegg ↗
-                        </a>
-                      )}
+                      <BuyButtons
+                        name={part.name}
+                        neweggUrl={isSearchResult ? (part as SearchResult).url : undefined}
+                      />
                     </div>
                     <div style={{ textAlign: "right", flexShrink: 0 }}>
                       <div style={{ fontSize: 15, fontWeight: 700, color: T.text }}>${(part as any).price}</div>
@@ -385,6 +422,7 @@ export default function Home() {
   const [openSlot,     setOpenSlot]     = useState<ComponentKey | null>(null);
   const [customBudget, setCustomBudget] = useState(1300);
   const [mode,         setMode]         = useState<"ai" | "custom">("ai");
+  const [tab,          setTab]          = useState<"build" | "prebuilt">("build");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -422,10 +460,29 @@ export default function Home() {
             <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.06em", padding: "3px 8px",
               borderRadius: 99, background: "rgba(99,102,241,0.12)", color: T.accent,
               border: `1px solid rgba(99,102,241,0.2)`, textTransform: "uppercase" }}>Beta</span>
+            {/* Nav tabs */}
+            <div style={{ marginLeft: "auto", display: "flex", gap: 2 }}>
+              {(["build", "prebuilt"] as const).map(t => (
+                <button key={t} onClick={() => setTab(t)}
+                  style={{ padding: "6px 14px", borderRadius: 8, fontSize: 13, fontWeight: 600,
+                    cursor: "pointer", border: "none", transition: "all 0.15s", textTransform: "capitalize",
+                    background: tab === t ? "rgba(255,255,255,0.08)" : "transparent",
+                    color: tab === t ? T.text : T.textMid }}>
+                  {t}
+                </button>
+              ))}
+            </div>
           </div>
         </nav>
 
-        <div style={{ maxWidth: 680, margin: "0 auto", padding: "48px 24px 80px" }}>
+        {tab === "prebuilt" && (
+          <div style={{ maxWidth: 680, margin: "0 auto", padding: "80px 24px",
+            display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <span style={{ fontSize: 18, color: T.textMid, fontWeight: 500 }}>working</span>
+          </div>
+        )}
+
+        {tab === "build" && (<div style={{ maxWidth: 680, margin: "0 auto", padding: "48px 24px 80px" }}>
 
           {/* Hero */}
           <div style={{ marginBottom: 40 }}>
@@ -436,7 +493,7 @@ export default function Home() {
               Build your perfect PC
             </h1>
             <p style={{ fontSize: 15, color: T.textMid, margin: 0, lineHeight: 1.6 }}>
-              AI-generated builds or hand-pick every part — with live Newegg prices and compatibility checks.
+              Automatically generate a build or hand-pick every part — with live Newegg prices and compatibility checks.
             </p>
           </div>
 
@@ -450,7 +507,7 @@ export default function Home() {
                   background: mode === m ? T.grad : "transparent",
                   color: mode === m ? "#fff" : T.textMid,
                   boxShadow: mode === m ? "0 2px 8px rgba(99,102,241,0.35)" : "none" }}>
-                {m === "ai" ? "⚡  AI Build" : "⚙  Custom Build"}
+                {m === "ai" ? "⚡  Make Build" : "⚙  Custom Build"}
               </button>
             ))}
           </div>
@@ -641,6 +698,7 @@ export default function Home() {
                           <div style={{ fontSize: 12, color: T.textMid,
                             overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{(picked as any).specs}</div>
                         )}
+                        {picked && <BuyButtons name={picked.name} />}
                         {issues.map((iss, i) => (
                           <div key={i} style={{ fontSize: 11, marginTop: 4,
                             color: iss.severity === "error" ? "#fca5a5" : "#fcd34d" }}>
@@ -689,7 +747,7 @@ export default function Home() {
               )}
             </div>
           )}
-        </div>
+        </div>)}
       </main>
     </>
   );
