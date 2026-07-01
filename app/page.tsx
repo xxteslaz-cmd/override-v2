@@ -4,113 +4,114 @@ import type { SearchResult } from "./api/search/route";
 
 // ─── Part data ────────────────────────────────────────────────────────────────
 
-interface CPUPart  { id: string; name: string; price: number; tier: string; socket: string; perfScore: number; tdp: number; cores: number; threads: number; baseClock: number; boostClock: number; specs: string; }
-interface GPUPart  { id: string; name: string; price: number; tier: string; vram: number; perfScore: number; specs: string; lengthMm: number; powerW: number; }
-interface MoboPart { id: string; name: string; price: number; tier: string; specs: string; socket: string; formFactor: "ATX" | "mATX" | "ITX"; }
-interface CasePart { id: string; name: string; price: number; tier: string; specs: string; supportedFormFactors: string[]; maxGpuMm: number; }
-interface PSUPart  { id: string; name: string; price: number; tier: string; specs: string; watts: number; }
-interface SimplePart { id: string; name: string; price: number; tier: string; specs: string; }
+interface CPUPart  { id: string; name: string; price: number; tier: string; socket: string; perfScore: number; tdp: number; cores: number; threads: number; baseClock: number; boostClock: number; specs: string; img?: string; }
+interface GPUPart  { id: string; name: string; price: number; tier: string; vram: number; perfScore: number; specs: string; lengthMm: number; powerW: number; img?: string; }
+interface MoboPart { id: string; name: string; price: number; tier: string; specs: string; socket: string; formFactor: "ATX" | "mATX" | "ITX"; img?: string; }
+interface CasePart { id: string; name: string; price: number; tier: string; specs: string; supportedFormFactors: string[]; maxGpuMm: number; img?: string; }
+interface PSUPart  { id: string; name: string; price: number; tier: string; specs: string; watts: number; img?: string; }
+interface SimplePart { id: string; name: string; price: number; tier: string; specs: string; img?: string; }
 type AnyPart = CPUPart | GPUPart | MoboPart | CasePart | PSUPart | SimplePart;
 
+const NI = "https://c1.neweggimages.com/ProductImage/";
 const CPUS: CPUPart[] = [
-  { id: "r3-7300x",   name: "AMD Ryzen 3 7300X",    price: 129, tier: "budget", socket: "AM5",     perfScore: 5,  tdp: 65,  cores: 4,  threads: 8,  baseClock: 4.1, boostClock: 5.0, specs: "4C/8T · 4.1–5.0 GHz · 65W · AM5" },
-  { id: "r5-7500f",   name: "AMD Ryzen 5 7500F",    price: 159, tier: "budget", socket: "AM5",     perfScore: 6,  tdp: 65,  cores: 6,  threads: 12, baseClock: 3.7, boostClock: 5.0, specs: "6C/12T · 3.7–5.0 GHz · 65W · AM5 · No iGPU" },
-  { id: "r5-7600",    name: "AMD Ryzen 5 7600",     price: 189, tier: "budget", socket: "AM5",     perfScore: 6,  tdp: 65,  cores: 6,  threads: 12, baseClock: 3.8, boostClock: 5.1, specs: "6C/12T · 3.8–5.1 GHz · 65W · AM5" },
-  { id: "i5-13400f",  name: "Intel Core i5-13400F", price: 169, tier: "budget", socket: "LGA1700", perfScore: 6,  tdp: 65,  cores: 10, threads: 16, baseClock: 2.5, boostClock: 4.6, specs: "10C/16T · 2.5–4.6 GHz · 65W · LGA1700 · No iGPU" },
-  { id: "i5-14600k",  name: "Intel Core i5-14600K", price: 229, tier: "budget", socket: "LGA1700", perfScore: 7,  tdp: 125, cores: 14, threads: 20, baseClock: 3.5, boostClock: 5.3, specs: "14C/20T · 3.5–5.3 GHz · 125W · LGA1700" },
-  { id: "r7-7700",    name: "AMD Ryzen 7 7700",     price: 249, tier: "mid",    socket: "AM5",     perfScore: 8,  tdp: 65,  cores: 8,  threads: 16, baseClock: 3.8, boostClock: 5.3, specs: "8C/16T · 3.8–5.3 GHz · 65W · AM5" },
-  { id: "r7-7700x",   name: "AMD Ryzen 7 7700X",    price: 269, tier: "mid",    socket: "AM5",     perfScore: 8,  tdp: 105, cores: 8,  threads: 16, baseClock: 4.5, boostClock: 5.4, specs: "8C/16T · 4.5–5.4 GHz · 105W · AM5" },
-  { id: "i7-14700",   name: "Intel Core i7-14700",  price: 299, tier: "mid",    socket: "LGA1700", perfScore: 8,  tdp: 65,  cores: 20, threads: 28, baseClock: 2.1, boostClock: 5.4, specs: "20C/28T · 2.1–5.4 GHz · 65W · LGA1700" },
-  { id: "i7-14700k",  name: "Intel Core i7-14700K", price: 339, tier: "mid",    socket: "LGA1700", perfScore: 9,  tdp: 125, cores: 20, threads: 28, baseClock: 3.4, boostClock: 5.6, specs: "20C/28T · 3.4–5.6 GHz · 125W · LGA1700" },
-  { id: "r9-7900x",   name: "AMD Ryzen 9 7900X",    price: 329, tier: "high",   socket: "AM5",     perfScore: 9,  tdp: 170, cores: 12, threads: 24, baseClock: 4.7, boostClock: 5.6, specs: "12C/24T · 4.7–5.6 GHz · 170W · AM5" },
-  { id: "r9-7950x",   name: "AMD Ryzen 9 7950X",    price: 449, tier: "high",   socket: "AM5",     perfScore: 10, tdp: 170, cores: 16, threads: 32, baseClock: 4.5, boostClock: 5.7, specs: "16C/32T · 4.5–5.7 GHz · 170W · AM5" },
-  { id: "i9-14900",   name: "Intel Core i9-14900",  price: 369, tier: "high",   socket: "LGA1700", perfScore: 9,  tdp: 65,  cores: 24, threads: 32, baseClock: 2.0, boostClock: 5.8, specs: "24C/32T · 2.0–5.8 GHz · 65W · LGA1700" },
-  { id: "i9-14900k",  name: "Intel Core i9-14900K", price: 429, tier: "high",   socket: "LGA1700", perfScore: 10, tdp: 125, cores: 24, threads: 32, baseClock: 3.2, boostClock: 6.0, specs: "24C/32T · 3.2–6.0 GHz · 125W · LGA1700" },
-  { id: "r9-7950x3d", name: "AMD Ryzen 9 7950X3D",  price: 579, tier: "high",   socket: "AM5",     perfScore: 10, tdp: 120, cores: 16, threads: 32, baseClock: 4.2, boostClock: 5.7, specs: "16C/32T · 4.2–5.7 GHz · 120W · AM5 · 3D V-Cache" },
+  { id: "r3-7300x",   name: "AMD Ryzen 3 7300X",    price: 129, tier: "budget", socket: "AM5",     perfScore: 5,  tdp: 65,  cores: 4,  threads: 8,  baseClock: 4.1, boostClock: 5.0, specs: "4C/8T · 4.1–5.0 GHz · 65W · AM5",                       img: NI+"19-113-829-01.png" },
+  { id: "r5-7500f",   name: "AMD Ryzen 5 7500F",    price: 159, tier: "budget", socket: "AM5",     perfScore: 6,  tdp: 65,  cores: 6,  threads: 12, baseClock: 3.7, boostClock: 5.0, specs: "6C/12T · 3.7–5.0 GHz · 65W · AM5 · No iGPU",             img: NI+"19-113-828-04.jpg" },
+  { id: "r5-7600",    name: "AMD Ryzen 5 7600",     price: 189, tier: "budget", socket: "AM5",     perfScore: 6,  tdp: 65,  cores: 6,  threads: 12, baseClock: 3.8, boostClock: 5.1, specs: "6C/12T · 3.8–5.1 GHz · 65W · AM5",                       img: NI+"19-113-811-01.jpg" },
+  { id: "i5-13400f",  name: "Intel Core i5-13400F", price: 169, tier: "budget", socket: "LGA1700", perfScore: 6,  tdp: 65,  cores: 10, threads: 16, baseClock: 2.5, boostClock: 4.6, specs: "10C/16T · 2.5–4.6 GHz · 65W · LGA1700 · No iGPU",         img: NI+"19-118-411-V01.jpg" },
+  { id: "i5-14600k",  name: "Intel Core i5-14600K", price: 229, tier: "budget", socket: "LGA1700", perfScore: 7,  tdp: 125, cores: 14, threads: 20, baseClock: 3.5, boostClock: 5.3, specs: "14C/20T · 3.5–5.3 GHz · 125W · LGA1700",                  img: NI+"AYTVS2303090IKVEZ94.jpg" },
+  { id: "r7-7700",    name: "AMD Ryzen 7 7700",     price: 249, tier: "mid",    socket: "AM5",     perfScore: 8,  tdp: 65,  cores: 8,  threads: 16, baseClock: 3.8, boostClock: 5.3, specs: "8C/16T · 3.8–5.3 GHz · 65W · AM5",                       img: NI+"19-113-817-01.jpg" },
+  { id: "r7-7700x",   name: "AMD Ryzen 7 7700X",    price: 269, tier: "mid",    socket: "AM5",     perfScore: 8,  tdp: 105, cores: 8,  threads: 16, baseClock: 4.5, boostClock: 5.4, specs: "8C/16T · 4.5–5.4 GHz · 105W · AM5",                      img: NI+"19-113-808-10.jpg" },
+  { id: "i7-14700",   name: "Intel Core i7-14700",  price: 299, tier: "mid",    socket: "LGA1700", perfScore: 8,  tdp: 65,  cores: 20, threads: 28, baseClock: 2.1, boostClock: 5.4, specs: "20C/28T · 2.1–5.4 GHz · 65W · LGA1700",                  img: NI+"AYTVS2303090IOYY094.jpg" },
+  { id: "i7-14700k",  name: "Intel Core i7-14700K", price: 339, tier: "mid",    socket: "LGA1700", perfScore: 9,  tdp: 125, cores: 20, threads: 28, baseClock: 3.4, boostClock: 5.6, specs: "20C/28T · 3.4–5.6 GHz · 125W · LGA1700",                 img: NI+"AYTVS2303090IL7TG94.jpg" },
+  { id: "r9-7900x",   name: "AMD Ryzen 9 7900X",    price: 329, tier: "high",   socket: "AM5",     perfScore: 9,  tdp: 170, cores: 12, threads: 24, baseClock: 4.7, boostClock: 5.6, specs: "12C/24T · 4.7–5.6 GHz · 170W · AM5",                     img: NI+"A4YUD2311300Z1H1E95.jpg" },
+  { id: "r9-7950x",   name: "AMD Ryzen 9 7950X",    price: 449, tier: "high",   socket: "AM5",     perfScore: 10, tdp: 170, cores: 16, threads: 32, baseClock: 4.5, boostClock: 5.7, specs: "16C/32T · 4.5–5.7 GHz · 170W · AM5",                     img: NI+"19-113-793-03.png" },
+  { id: "i9-14900",   name: "Intel Core i9-14900",  price: 369, tier: "high",   socket: "LGA1700", perfScore: 9,  tdp: 65,  cores: 24, threads: 32, baseClock: 2.0, boostClock: 5.8, specs: "24C/32T · 2.0–5.8 GHz · 65W · LGA1700",                  img: NI+"19-118-426-02.png" },
+  { id: "i9-14900k",  name: "Intel Core i9-14900K", price: 429, tier: "high",   socket: "LGA1700", perfScore: 10, tdp: 125, cores: 24, threads: 32, baseClock: 3.2, boostClock: 6.0, specs: "24C/32T · 3.2–6.0 GHz · 125W · LGA1700",                 img: NI+"19-118-424-01.jpg" },
+  { id: "r9-7950x3d", name: "AMD Ryzen 9 7950X3D",  price: 579, tier: "high",   socket: "AM5",     perfScore: 10, tdp: 120, cores: 16, threads: 32, baseClock: 4.2, boostClock: 5.7, specs: "16C/32T · 4.2–5.7 GHz · 120W · AM5 · 3D V-Cache",        img: NI+"19-113-829-01.png" },
 ];
 const GPUS: GPUPart[] = [
-  { id: "rx6600",      name: "AMD RX 6600",               price: 149, tier: "budget", vram: 8,  perfScore: 4,  specs: "8 GB · 1080p",            lengthMm: 240, powerW: 132 },
-  { id: "rx7600",      name: "AMD RX 7600",               price: 219, tier: "budget", vram: 8,  perfScore: 5,  specs: "8 GB · 1080p",            lengthMm: 215, powerW: 165 },
-  { id: "rtx4060",     name: "NVIDIA RTX 4060",           price: 289, tier: "budget", vram: 8,  perfScore: 6,  specs: "8 GB · 1080p/1440p",      lengthMm: 240, powerW: 115 },
-  { id: "rx6700",      name: "AMD RX 6700",               price: 249, tier: "budget", vram: 10, perfScore: 5,  specs: "10 GB · 1080p/1440p",     lengthMm: 267, powerW: 175 },
-  { id: "rtx3060",     name: "NVIDIA RTX 3060",           price: 199, tier: "budget", vram: 12, perfScore: 5,  specs: "12 GB · 1080p",           lengthMm: 242, powerW: 170 },
-  { id: "rtx4060ti",   name: "NVIDIA RTX 4060 Ti",        price: 369, tier: "mid",    vram: 16, perfScore: 7,  specs: "16 GB · 1440p",           lengthMm: 240, powerW: 165 },
-  { id: "rx7700xt",    name: "AMD RX 7700 XT",            price: 319, tier: "mid",    vram: 12, perfScore: 7,  specs: "12 GB · 1440p",           lengthMm: 267, powerW: 245 },
-  { id: "rx7800xt",    name: "AMD RX 7800 XT",            price: 419, tier: "mid",    vram: 16, perfScore: 8,  specs: "16 GB · 1440p/4K",        lengthMm: 276, powerW: 263 },
-  { id: "rtx4070",     name: "NVIDIA RTX 4070",           price: 499, tier: "mid",    vram: 12, perfScore: 8,  specs: "12 GB · 1440p/4K",        lengthMm: 285, powerW: 200 },
-  { id: "rtx4070s",    name: "NVIDIA RTX 4070 Super",     price: 549, tier: "mid",    vram: 12, perfScore: 8,  specs: "12 GB · 1440p/4K",        lengthMm: 285, powerW: 220 },
-  { id: "rx7900xt",    name: "AMD RX 7900 XT",            price: 629, tier: "high",   vram: 20, perfScore: 9,  specs: "20 GB · 4K",              lengthMm: 287, powerW: 315 },
-  { id: "rtx4070ti",   name: "NVIDIA RTX 4070 Ti",        price: 679, tier: "high",   vram: 12, perfScore: 9,  specs: "12 GB · 4K",              lengthMm: 336, powerW: 285 },
-  { id: "rtx4070tis",  name: "NVIDIA RTX 4070 Ti Super",  price: 749, tier: "high",   vram: 16, perfScore: 9,  specs: "16 GB · 4K",              lengthMm: 336, powerW: 285 },
-  { id: "rx7900xtx",   name: "AMD RX 7900 XTX",          price: 799, tier: "high",   vram: 24, perfScore: 9,  specs: "24 GB · 4K",              lengthMm: 287, powerW: 355 },
-  { id: "rtx4080s",    name: "NVIDIA RTX 4080 Super",     price: 949, tier: "high",   vram: 16, perfScore: 10, specs: "16 GB · 4K",              lengthMm: 336, powerW: 320 },
-  { id: "rtx4090",     name: "NVIDIA RTX 4090",           price: 1549,tier: "ultra",  vram: 24, perfScore: 10, specs: "24 GB · 4K ultra",        lengthMm: 336, powerW: 450 },
+  { id: "rx6600",      name: "AMD RX 6600",               price: 149, tier: "budget", vram: 8,  perfScore: 4,  specs: "8 GB · 1080p",            lengthMm: 240, powerW: 132, img: NI+"14-150-801-Z01.jpg" },
+  { id: "rx7600",      name: "AMD RX 7600",               price: 219, tier: "budget", vram: 8,  perfScore: 5,  specs: "8 GB · 1080p",            lengthMm: 215, powerW: 165, img: NI+"14-930-083-01.jpg" },
+  { id: "rtx4060",     name: "NVIDIA RTX 4060",           price: 289, tier: "budget", vram: 8,  perfScore: 6,  specs: "8 GB · 1080p/1440p",      lengthMm: 240, powerW: 115, img: NI+"14-126-596-V01.jpg" },
+  { id: "rx6700",      name: "AMD RX 6700",               price: 249, tier: "budget", vram: 10, perfScore: 5,  specs: "10 GB · 1080p/1440p",     lengthMm: 267, powerW: 175, img: NI+"14-150-825-V01.jpg" },
+  { id: "rtx3060",     name: "NVIDIA RTX 3060",           price: 199, tier: "budget", vram: 12, perfScore: 5,  specs: "12 GB · 1080p",           lengthMm: 242, powerW: 170, img: NI+"14-126-503-V01.jpg" },
+  { id: "rtx4060ti",   name: "NVIDIA RTX 4060 Ti",        price: 369, tier: "mid",    vram: 16, perfScore: 7,  specs: "16 GB · 1440p",           lengthMm: 240, powerW: 165, img: NI+"14-126-590-V08.jpg" },
+  { id: "rx7700xt",    name: "AMD RX 7700 XT",            price: 319, tier: "mid",    vram: 12, perfScore: 7,  specs: "12 GB · 1440p",           lengthMm: 267, powerW: 245, img: NI+"14-137-708-01.jpg" },
+  { id: "rx7800xt",    name: "AMD RX 7800 XT",            price: 419, tier: "mid",    vram: 16, perfScore: 8,  specs: "16 GB · 1440p/4K",        lengthMm: 276, powerW: 263, img: NI+"14-930-109-09.jpg" },
+  { id: "rtx4070",     name: "NVIDIA RTX 4070",           price: 499, tier: "mid",    vram: 12, perfScore: 8,  specs: "12 GB · 1440p/4K",        lengthMm: 285, powerW: 200, img: NI+"14-126-578-01.png" },
+  { id: "rtx4070s",    name: "NVIDIA RTX 4070 Super",     price: 549, tier: "mid",    vram: 12, perfScore: 8,  specs: "12 GB · 1440p/4K",        lengthMm: 285, powerW: 220, img: NI+"14-126-607-32.jpg" },
+  { id: "rx7900xt",    name: "AMD RX 7900 XT",            price: 629, tier: "high",   vram: 20, perfScore: 9,  specs: "20 GB · 4K",              lengthMm: 287, powerW: 315, img: NI+"14-150-905-05.jpg" },
+  { id: "rtx4070ti",   name: "NVIDIA RTX 4070 Ti",        price: 679, tier: "high",   vram: 12, perfScore: 9,  specs: "12 GB · 4K",              lengthMm: 336, powerW: 285, img: NI+"14-126-567-04.jpg" },
+  { id: "rtx4070tis",  name: "NVIDIA RTX 4070 Ti Super",  price: 749, tier: "high",   vram: 16, perfScore: 9,  specs: "16 GB · 4K",              lengthMm: 336, powerW: 285, img: NI+"14-126-617-02.jpg" },
+  { id: "rx7900xtx",   name: "AMD RX 7900 XTX",           price: 799, tier: "high",   vram: 24, perfScore: 9,  specs: "24 GB · 4K",              lengthMm: 287, powerW: 355, img: NI+"14-150-916-04.jpg" },
+  { id: "rtx4080s",    name: "NVIDIA RTX 4080 Super",     price: 949, tier: "high",   vram: 16, perfScore: 10, specs: "16 GB · 4K",              lengthMm: 336, powerW: 320, img: NI+"14-126-519-01.jpg" },
+  { id: "rtx4090",     name: "NVIDIA RTX 4090",           price: 1549,tier: "ultra",  vram: 24, perfScore: 10, specs: "24 GB · 4K ultra",        lengthMm: 336, powerW: 450, img: NI+"14-126-579-V23.jpg" },
 ];
 const MOTHERBOARDS: MoboPart[] = [
-  { id: "b650m-ds",    name: "Gigabyte B650M DS3H",        price: 109, tier: "budget", socket: "AM5",     formFactor: "mATX", specs: "AM5 · DDR5 · PCIe 5.0 · mATX" },
-  { id: "b650-plus",   name: "MSI B650 Gaming Plus",       price: 159, tier: "budget", socket: "AM5",     formFactor: "ATX",  specs: "AM5 · DDR5 · PCIe 5.0 · ATX" },
-  { id: "b760m-pro",   name: "ASUS Prime B760M-A",         price: 129, tier: "budget", socket: "LGA1700", formFactor: "mATX", specs: "LGA1700 · DDR5 · PCIe 4.0 · mATX" },
+  { id: "b650m-ds",    name: "Gigabyte B650M DS3H",        price: 109, tier: "budget", socket: "AM5",     formFactor: "mATX", specs: "AM5 · DDR5 · PCIe 5.0 · mATX",            img: NI+"13-145-424-V01.jpg" },
+  { id: "b650-plus",   name: "MSI B650 Gaming Plus",       price: 159, tier: "budget", socket: "AM5",     formFactor: "ATX",  specs: "AM5 · DDR5 · PCIe 5.0 · ATX",             img: NI+"13-144-557-06.jpg" },
+  { id: "b760m-pro",   name: "ASUS Prime B760M-A",         price: 129, tier: "budget", socket: "LGA1700", formFactor: "mATX", specs: "LGA1700 · DDR5 · PCIe 4.0 · mATX",        img: NI+"13-119-621-09.png" },
   { id: "b760-pro",    name: "MSI PRO B760-P WiFi",        price: 149, tier: "budget", socket: "LGA1700", formFactor: "ATX",  specs: "LGA1700 · DDR5 · PCIe 4.0 · WiFi" },
   { id: "b650m-itx",   name: "ASRock B650I Lightning",     price: 229, tier: "mid",    socket: "AM5",     formFactor: "ITX",  specs: "AM5 · DDR5 · Mini-ITX" },
-  { id: "x670-f",      name: "ASUS ROG Strix X670E-F",     price: 329, tier: "mid",    socket: "AM5",     formFactor: "ATX",  specs: "AM5 · DDR5 · PCIe 5.0 · WiFi 6E" },
-  { id: "z790-edge",   name: "MSI MEG Z790 Edge",          price: 299, tier: "mid",    socket: "LGA1700", formFactor: "ATX",  specs: "LGA1700 · DDR5 · PCIe 5.0 · WiFi 6E" },
-  { id: "z790-aorus",  name: "Gigabyte Z790 Aorus Elite",  price: 279, tier: "mid",    socket: "LGA1700", formFactor: "ATX",  specs: "LGA1700 · DDR5 · PCIe 5.0 · WiFi 6E" },
-  { id: "x670e-hero",  name: "ASUS ROG Crosshair X670E",   price: 499, tier: "high",   socket: "AM5",     formFactor: "ATX",  specs: "AM5 · DDR5 · Flagship VRM" },
+  { id: "x670-f",      name: "ASUS ROG Strix X670E-F",     price: 329, tier: "mid",    socket: "AM5",     formFactor: "ATX",  specs: "AM5 · DDR5 · PCIe 5.0 · WiFi 6E",         img: NI+"13-119-509-V01.jpg" },
+  { id: "z790-edge",   name: "MSI MEG Z790 Edge",          price: 299, tier: "mid",    socket: "LGA1700", formFactor: "ATX",  specs: "LGA1700 · DDR5 · PCIe 5.0 · WiFi 6E",     img: NI+"13-144-635-03.png" },
+  { id: "z790-aorus",  name: "Gigabyte Z790 Aorus Elite",  price: 279, tier: "mid",    socket: "LGA1700", formFactor: "ATX",  specs: "LGA1700 · DDR5 · PCIe 5.0 · WiFi 6E",     img: NI+"13-145-419-07.jpg" },
+  { id: "x670e-hero",  name: "ASUS ROG Crosshair X670E",   price: 499, tier: "high",   socket: "AM5",     formFactor: "ATX",  specs: "AM5 · DDR5 · Flagship VRM",               img: NI+"13-119-494-V01.jpg" },
   { id: "z790-apex",   name: "ASUS ROG Maximus Z790 Apex", price: 599, tier: "high",   socket: "LGA1700", formFactor: "ATX",  specs: "LGA1700 · DDR5 · Extreme OC · 10Gb LAN" },
 ];
 const RAMS: SimplePart[] = [
-  { id: "ddr5-16-5600", name: "16 GB DDR5-5600",   price: 45,  tier: "budget", specs: "2×8 GB · DDR5-5600 · CL36" },
-  { id: "ddr5-16",      name: "16 GB DDR5-6000",   price: 59,  tier: "budget", specs: "2×8 GB · DDR5-6000 · CL30" },
-  { id: "ddr5-32a",     name: "32 GB DDR5-6000",   price: 89,  tier: "mid",    specs: "2×16 GB · DDR5-6000 · CL30" },
-  { id: "ddr5-32b",     name: "32 GB DDR5-6400",   price: 109, tier: "mid",    specs: "2×16 GB · DDR5-6400 · CL32" },
-  { id: "ddr5-32c",     name: "32 GB DDR5-6800",   price: 129, tier: "mid",    specs: "2×16 GB · DDR5-6800 · CL34 · XMP 3.0" },
-  { id: "ddr5-64",      name: "64 GB DDR5-6000",   price: 169, tier: "high",   specs: "2×32 GB · DDR5-6000 · CL30" },
-  { id: "ddr5-64b",     name: "64 GB DDR5-6400",   price: 199, tier: "high",   specs: "2×32 GB · DDR5-6400 · CL32 · RGB" },
-  { id: "ddr5-96",      name: "96 GB DDR5-6000",   price: 279, tier: "high",   specs: "2×48 GB · DDR5-6000 · CL30" },
+  { id: "ddr5-16-5600", name: "16 GB DDR5-5600",    price: 45,  tier: "budget", specs: "2×8 GB · DDR5-5600 · CL36" },
+  { id: "ddr5-16",      name: "16 GB DDR5-6000",    price: 59,  tier: "budget", specs: "2×8 GB · DDR5-6000 · CL30",          img: NI+"20-232-976-S01.jpg" },
+  { id: "ddr5-32a",     name: "32 GB DDR5-6000",    price: 89,  tier: "mid",    specs: "2×16 GB · DDR5-6000 · CL30",         img: NI+"20-232-978-S02.jpg" },
+  { id: "ddr5-32b",     name: "32 GB DDR5-6400",    price: 109, tier: "mid",    specs: "2×16 GB · DDR5-6400 · CL32",         img: NI+"20-232-906-V01.jpg" },
+  { id: "ddr5-32c",     name: "32 GB DDR5-6800",    price: 129, tier: "mid",    specs: "2×16 GB · DDR5-6800 · CL34 · XMP 3.0" },
+  { id: "ddr5-64",      name: "64 GB DDR5-6000",    price: 169, tier: "high",   specs: "2×32 GB · DDR5-6000 · CL30",         img: NI+"20-232-979-S01.jpg" },
+  { id: "ddr5-64b",     name: "64 GB DDR5-6400",    price: 199, tier: "high",   specs: "2×32 GB · DDR5-6400 · CL32 · RGB" },
+  { id: "ddr5-96",      name: "96 GB DDR5-6000",    price: 279, tier: "high",   specs: "2×48 GB · DDR5-6000 · CL30" },
 ];
 const STORAGES: SimplePart[] = [
-  { id: "ssd-500-g4",  name: "500 GB NVMe Gen 4 SSD",  price: 45,  tier: "budget", specs: "5,000/4,200 MB/s · PCIe 4.0 · M.2" },
-  { id: "ssd-1tb-g3",  name: "1 TB NVMe Gen 3 SSD",   price: 49,  tier: "budget", specs: "3,500/3,000 MB/s · PCIe 3.0 · M.2" },
-  { id: "ssd-1tb-g4",  name: "1 TB NVMe Gen 4 SSD",   price: 69,  tier: "budget", specs: "7,000/6,500 MB/s · PCIe 4.0 · M.2" },
-  { id: "ssd-2tb-g4",  name: "2 TB NVMe Gen 4 SSD",   price: 109, tier: "mid",    specs: "7,000/6,500 MB/s · PCIe 4.0 · M.2" },
-  { id: "ssd-2tb-g4b", name: "2 TB NVMe Gen 4 SSD Pro",price: 139, tier: "mid",    specs: "7,400/6,900 MB/s · PCIe 4.0 · M.2" },
-  { id: "ssd-4tb-g4",  name: "4 TB NVMe Gen 4 SSD",   price: 239, tier: "high",   specs: "7,200/6,900 MB/s · PCIe 4.0 · M.2" },
-  { id: "ssd-2tb-g5",  name: "2 TB NVMe Gen 5 SSD",   price: 199, tier: "high",   specs: "12,000/11,000 MB/s · PCIe 5.0 · M.2" },
-  { id: "ssd-4tb-g5",  name: "4 TB NVMe Gen 5 SSD",   price: 399, tier: "high",   specs: "12,000/11,000 MB/s · PCIe 5.0 · M.2" },
+  { id: "ssd-500-g4",  name: "500 GB NVMe Gen 4 SSD",   price: 45,  tier: "budget", specs: "5,000/4,200 MB/s · PCIe 4.0 · M.2" },
+  { id: "ssd-1tb-g3",  name: "1 TB NVMe Gen 3 SSD",     price: 49,  tier: "budget", specs: "3,500/3,000 MB/s · PCIe 3.0 · M.2" },
+  { id: "ssd-1tb-g4",  name: "1 TB NVMe Gen 4 SSD",     price: 69,  tier: "budget", specs: "7,000/6,500 MB/s · PCIe 4.0 · M.2",  img: NI+"20-147-791-V01.jpg" },
+  { id: "ssd-2tb-g4",  name: "2 TB NVMe Gen 4 SSD",     price: 109, tier: "mid",    specs: "7,000/6,500 MB/s · PCIe 4.0 · M.2",  img: NI+"20-147-792-V01.jpg" },
+  { id: "ssd-2tb-g4b", name: "2 TB NVMe Gen 4 SSD Pro", price: 139, tier: "mid",    specs: "7,400/6,900 MB/s · PCIe 4.0 · M.2" },
+  { id: "ssd-4tb-g4",  name: "4 TB NVMe Gen 4 SSD",     price: 239, tier: "high",   specs: "7,200/6,900 MB/s · PCIe 4.0 · M.2" },
+  { id: "ssd-2tb-g5",  name: "2 TB NVMe Gen 5 SSD",     price: 199, tier: "high",   specs: "12,000/11,000 MB/s · PCIe 5.0 · M.2" },
+  { id: "ssd-4tb-g5",  name: "4 TB NVMe Gen 5 SSD",     price: 399, tier: "high",   specs: "12,000/11,000 MB/s · PCIe 5.0 · M.2" },
 ];
 const PSUS: PSUPart[] = [
-  { id: "psu-550g",  name: "EVGA SuperNOVA 550 G6",       price: 69,  tier: "budget", watts: 550,  specs: "550W · 80+ Gold · Fully modular" },
-  { id: "psu-650g",  name: "Corsair RM650x",               price: 89,  tier: "budget", watts: 650,  specs: "650W · 80+ Gold · Fully modular" },
-  { id: "psu-750g",  name: "Seasonic Focus GX-750",        price: 109, tier: "mid",    watts: 750,  specs: "750W · 80+ Gold · Fully modular" },
-  { id: "psu-750p",  name: "be quiet! Pure Power 12M 750W",price: 99,  tier: "mid",    watts: 750,  specs: "750W · 80+ Gold · Semi-modular" },
-  { id: "psu-850p",  name: "be quiet! Straight Power 850W",price: 139, tier: "mid",    watts: 850,  specs: "850W · 80+ Platinum · Fully modular" },
-  { id: "psu-850g",  name: "Corsair RM850x",               price: 129, tier: "mid",    watts: 850,  specs: "850W · 80+ Gold · Fully modular" },
-  { id: "psu-1000t", name: "Corsair HX1000",               price: 189, tier: "high",   watts: 1000, specs: "1000W · 80+ Platinum · Fully modular" },
-  { id: "psu-1200p", name: "Seasonic PRIME TX-1200",       price: 279, tier: "high",   watts: 1200, specs: "1200W · 80+ Titanium · Fully modular" },
+  { id: "psu-550g",  name: "EVGA SuperNOVA 550 G6",        price: 69,  tier: "budget", watts: 550,  specs: "550W · 80+ Gold · Fully modular" },
+  { id: "psu-650g",  name: "Corsair RM650x",                price: 89,  tier: "budget", watts: 650,  specs: "650W · 80+ Gold · Fully modular",      img: NI+"17-139-259-S01.jpg" },
+  { id: "psu-750g",  name: "Seasonic Focus GX-750",         price: 109, tier: "mid",    watts: 750,  specs: "750W · 80+ Gold · Fully modular",      img: NI+"17-151-235-V01.jpg" },
+  { id: "psu-750p",  name: "be quiet! Pure Power 12M 750W", price: 99,  tier: "mid",    watts: 750,  specs: "750W · 80+ Gold · Semi-modular" },
+  { id: "psu-850p",  name: "be quiet! Straight Power 850W", price: 139, tier: "mid",    watts: 850,  specs: "850W · 80+ Platinum · Fully modular" },
+  { id: "psu-850g",  name: "Corsair RM850x",                price: 129, tier: "mid",    watts: 850,  specs: "850W · 80+ Gold · Fully modular",      img: NI+"17-139-270-V01.jpg" },
+  { id: "psu-1000t", name: "Corsair HX1000",                price: 189, tier: "high",   watts: 1000, specs: "1000W · 80+ Platinum · Fully modular", img: NI+"17-139-229-V01.jpg" },
+  { id: "psu-1200p", name: "Seasonic PRIME TX-1200",        price: 279, tier: "high",   watts: 1200, specs: "1200W · 80+ Titanium · Fully modular" },
 ];
 const CASES: CasePart[] = [
   { id: "h5-flow",   name: "NZXT H5 Flow",              price: 89,  tier: "budget", supportedFormFactors: ["ATX","mATX","ITX"],         maxGpuMm: 365, specs: "Mid-tower · ATX/mATX/ITX · 365mm GPU" },
-  { id: "meshify",   name: "Fractal Meshify C",          price: 99,  tier: "budget", supportedFormFactors: ["ATX","mATX","ITX"],         maxGpuMm: 315, specs: "Mid-tower · ATX/mATX/ITX · 315mm GPU" },
-  { id: "p400a",     name: "Phanteks Eclipse P400A",     price: 79,  tier: "budget", supportedFormFactors: ["ATX","mATX","ITX"],         maxGpuMm: 355, specs: "Mid-tower · ATX/mATX · Mesh front" },
-  { id: "4000d",     name: "Corsair 4000D Airflow",      price: 94,  tier: "budget", supportedFormFactors: ["ATX","mATX","ITX"],         maxGpuMm: 360, specs: "Mid-tower · ATX/mATX · Mesh front" },
-  { id: "nr200p",    name: "Cooler Master NR200P",       price: 99,  tier: "mid",    supportedFormFactors: ["ITX"],                      maxGpuMm: 330, specs: "ITX · 330mm GPU · Compact" },
+  { id: "meshify",   name: "Fractal Meshify C",          price: 99,  tier: "budget", supportedFormFactors: ["ATX","mATX","ITX"],         maxGpuMm: 315, specs: "Mid-tower · ATX/mATX/ITX · 315mm GPU",  img: NI+"11-352-069-V16.jpg" },
+  { id: "p400a",     name: "Phanteks Eclipse P400A",     price: 79,  tier: "budget", supportedFormFactors: ["ATX","mATX","ITX"],         maxGpuMm: 355, specs: "Mid-tower · ATX/mATX · Mesh front",      img: NI+"11-854-077-V20.jpg" },
+  { id: "4000d",     name: "Corsair 4000D Airflow",      price: 94,  tier: "budget", supportedFormFactors: ["ATX","mATX","ITX"],         maxGpuMm: 360, specs: "Mid-tower · ATX/mATX · Mesh front",      img: NI+"11-139-155-V01.jpg" },
+  { id: "nr200p",    name: "Cooler Master NR200P",       price: 99,  tier: "mid",    supportedFormFactors: ["ITX"],                      maxGpuMm: 330, specs: "ITX · 330mm GPU · Compact",              img: NI+"11-119-453-25.png" },
   { id: "o11-evo",   name: "Lian Li O11 Dynamic EVO",   price: 169, tier: "mid",    supportedFormFactors: ["ATX","mATX","ITX"],         maxGpuMm: 446, specs: "Mid-tower · ATX/mATX/ITX · 446mm GPU" },
-  { id: "define7",   name: "Fractal Design Define 7",    price: 189, tier: "mid",    supportedFormFactors: ["E-ATX","ATX","mATX","ITX"], maxGpuMm: 491, specs: "Full-tower · E-ATX · 491mm GPU" },
+  { id: "define7",   name: "Fractal Design Define 7",    price: 189, tier: "mid",    supportedFormFactors: ["E-ATX","ATX","mATX","ITX"], maxGpuMm: 491, specs: "Full-tower · E-ATX · 491mm GPU",         img: NI+"11-352-106-V20.jpg" },
   { id: "h7-flow",   name: "NZXT H7 Flow",               price: 129, tier: "mid",    supportedFormFactors: ["ATX","mATX","ITX"],         maxGpuMm: 400, specs: "Mid-tower · ATX/mATX/ITX · 400mm GPU" },
-  { id: "phanteks",  name: "Phanteks Enthoo 719",        price: 219, tier: "high",   supportedFormFactors: ["E-ATX","ATX","mATX","ITX"], maxGpuMm: 503, specs: "Full-tower · E-ATX · 503mm GPU" },
-  { id: "o11-xl",    name: "Lian Li O11 Dynamic XL",     price: 199, tier: "high",   supportedFormFactors: ["E-ATX","ATX","mATX","ITX"], maxGpuMm: 480, specs: "Full-tower · E-ATX · 480mm GPU" },
+  { id: "phanteks",  name: "Phanteks Enthoo 719",        price: 219, tier: "high",   supportedFormFactors: ["E-ATX","ATX","mATX","ITX"], maxGpuMm: 503, specs: "Full-tower · E-ATX · 503mm GPU",         img: NI+"11-854-065-V01.jpg" },
+  { id: "o11-xl",    name: "Lian Li O11 Dynamic XL",     price: 199, tier: "high",   supportedFormFactors: ["E-ATX","ATX","mATX","ITX"], maxGpuMm: 480, specs: "Full-tower · E-ATX · 480mm GPU",         img: NI+"11-112-569-V01.jpg" },
 ];
 const COOLERS: SimplePart[] = [
   { id: "wraith",     name: "AMD Wraith Stealth (Stock)", price: 0,   tier: "budget", specs: "Included · Up to 65W TDP" },
-  { id: "hyper212",   name: "Cooler Master Hyper 212",   price: 35,  tier: "budget", specs: "Single-tower · 150mm · 120mm fan" },
-  { id: "nh-u12s",    name: "Noctua NH-U12S",            price: 79,  tier: "mid",    specs: "Single-tower · 158mm · 120mm fan" },
-  { id: "nh-d15",     name: "Noctua NH-D15",             price: 99,  tier: "mid",    specs: "Dual-tower · 165mm · Best air cooler" },
-  { id: "be-dark5",   name: "be quiet! Dark Rock 5",     price: 89,  tier: "mid",    specs: "Single-tower · 162mm · Silent" },
-  { id: "kraken240",  name: "NZXT Kraken 240 AIO",       price: 109, tier: "mid",    specs: "240mm AIO · 2× 120mm fans" },
-  { id: "kraken280",  name: "NZXT Kraken 280 AIO",       price: 129, tier: "mid",    specs: "280mm AIO · 2× 140mm fans" },
-  { id: "kraken360",  name: "NZXT Kraken 360 AIO",       price: 149, tier: "high",   specs: "360mm AIO · 3× 120mm fans" },
-  { id: "lc360",      name: "Corsair iCUE H150i Elite",  price: 169, tier: "high",   specs: "360mm AIO · 3× 120mm · LCD display" },
-  { id: "nh-d15g2",   name: "Noctua NH-D15 G2",          price: 149, tier: "high",   specs: "Dual-tower · 168mm · Top-tier air" },
+  { id: "hyper212",   name: "Cooler Master Hyper 212",    price: 35,  tier: "budget", specs: "Single-tower · 150mm · 120mm fan",   img: NI+"35-103-218-04.jpg" },
+  { id: "nh-u12s",    name: "Noctua NH-U12S",             price: 79,  tier: "mid",    specs: "Single-tower · 158mm · 120mm fan",   img: NI+"AADYS200826AMgXr.jpg" },
+  { id: "nh-d15",     name: "Noctua NH-D15",              price: 99,  tier: "mid",    specs: "Dual-tower · 165mm · Best air cooler",img: NI+"35-608-045-V02.jpg" },
+  { id: "be-dark5",   name: "be quiet! Dark Rock 5",      price: 89,  tier: "mid",    specs: "Single-tower · 162mm · Silent" },
+  { id: "kraken240",  name: "NZXT Kraken 240 AIO",        price: 109, tier: "mid",    specs: "240mm AIO · 2× 120mm fans" },
+  { id: "kraken280",  name: "NZXT Kraken 280 AIO",        price: 129, tier: "mid",    specs: "280mm AIO · 2× 140mm fans" },
+  { id: "kraken360",  name: "NZXT Kraken 360 AIO",        price: 149, tier: "high",   specs: "360mm AIO · 3× 120mm fans" },
+  { id: "lc360",      name: "Corsair iCUE H150i Elite",   price: 169, tier: "high",   specs: "360mm AIO · 3× 120mm · LCD display", img: NI+"35-181-190-V11.jpg" },
+  { id: "nh-d15g2",   name: "Noctua NH-D15 G2",           price: 149, tier: "high",   specs: "Dual-tower · 168mm · Top-tier air" },
 ];
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -690,14 +691,36 @@ function PartModal({ slot, selected, onSelect, onClose }: {
                     transition: "all 0.1s" }}
 >
                   <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
-                    {/* Part icon */}
-                    {!isSearchResult && (
-                      <div style={{ flexShrink: 0, width: 48, height: 48, borderRadius: 10,
-                        background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)",
-                        display: "flex", alignItems: "center", justifyContent: "center" }}>
-                        <SlotIcon slot={slot} size={36} />
-                      </div>
-                    )}
+                    {/* Part image / icon */}
+                    {!isSearchResult && (() => {
+                      const imgUrl = (part as AnyPart & { img?: string }).img;
+                      return (
+                        <div style={{ flexShrink: 0, width: 60, height: 60, borderRadius: 12,
+                          background: imgUrl ? "#fff" : "rgba(255,255,255,0.04)",
+                          border: "1px solid rgba(255,255,255,0.10)",
+                          display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+                          {imgUrl ? (
+                            <img
+                              src={imgUrl}
+                              alt={part.name}
+                              width={56}
+                              height={56}
+                              style={{ objectFit: "contain", width: 56, height: 56, mixBlendMode: "multiply" }}
+                              onError={(e) => {
+                                const target = e.currentTarget;
+                                target.style.display = "none";
+                                (target.parentElement as HTMLElement).style.background = "rgba(255,255,255,0.04)";
+                                const fallback = target.nextElementSibling as HTMLElement;
+                                if (fallback) fallback.style.display = "flex";
+                              }}
+                            />
+                          ) : null}
+                          <div style={{ display: imgUrl ? "none" : "flex", alignItems: "center", justifyContent: "center", width: "100%", height: "100%" }}>
+                            <SlotIcon slot={slot} size={36} />
+                          </div>
+                        </div>
+                      );
+                    })()}
                     <div style={{ flex: 1, minWidth: 0 }}>
                       {/* Name row */}
                       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3, flexWrap: "wrap" }}>
@@ -855,9 +878,31 @@ export default function Home() {
   const compatIssues    = getCompatIssues(selected);
 
   // Wattage breakdown
-  const wattCpu      = selected.cpu?.tdp ?? 0;
-  const wattGpu      = selected.gpu?.powerW ?? 0;
-  const wattPlatform = (selected.motherboard ? 25 : 0) + (selected.ram ? 8 : 0) + (selected.storage ? 5 : 0) + (selected.cooler ? 6 : 0);
+  const wattCpu  = selected.cpu?.tdp ?? 0;
+  const wattGpu  = selected.gpu?.powerW ?? 0;
+
+  // Per-component estimates
+  const wattMobo    = selected.motherboard ? 25 : 0;
+  const wattRam     = selected.ram ? 8 : 0;
+  const wattStorage = (() => {
+    if (!selected.storage) return 0;
+    const n = selected.storage.name;
+    if (n.includes("Gen 5")) return 10;
+    if (n.includes("Gen 4")) return 6;
+    return 4; // Gen 3 or unknown
+  })();
+  const wattCooler = (() => {
+    if (!selected.cooler) return 0;
+    const id = selected.cooler.id;
+    if (id === "lc360" || id === "kraken360") return 18;
+    if (id === "kraken280") return 14;
+    if (id === "kraken240") return 12;
+    if (id === "nh-d15" || id === "nh-d15g2" || id === "be-dark5") return 7;
+    if (id === "nh-u12s" || id === "hyper212") return 5;
+    return 3; // stock / light cooler
+  })();
+  const wattCaseFans = selected.case ? 15 : 0; // ~3 case fans at ~5W avg
+  const wattPlatform = wattMobo + wattRam + wattStorage + wattCooler + wattCaseFans;
   const wattTotal    = wattCpu + wattGpu + wattPlatform;
   const wattPsu      = selected.psu?.watts ?? 0;
   const wattPct      = wattPsu ? Math.min(100, (wattTotal / wattPsu) * 100) : 0;
