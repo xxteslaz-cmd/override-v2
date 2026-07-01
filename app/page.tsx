@@ -162,10 +162,12 @@ function getCompatIssues(s: SelectedParts): CompatIssue[] {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
+const NO_BUDGET = 0; // sentinel: 0 means no limit
 const BUDGET_PRESETS = [
-  { label: "Low End",  sub: "Entry-level gaming",  value: 700  },
-  { label: "Mid End",  sub: "1440p / streaming",   value: 1300 },
+  { label: "Low End",  sub: "Entry-level gaming",    value: 700  },
+  { label: "Mid End",  sub: "1440p / streaming",     value: 1300 },
   { label: "High End", sub: "4K / content creation", value: 2200 },
+  { label: "No Limit", sub: "Best of the best",      value: NO_BUDGET },
 ];
 
 const COMPONENT_META: Record<ComponentKey, { label: string; icon: string }> = {
@@ -207,36 +209,33 @@ function gpuPairingNote(gpu: GPUPart, cpu?: CPUPart) {
 // e.g. amazon: `https://www.amazon.com/s?k=...&tag=YOUR-TAG`
 //      newegg: `https://www.newegg.com/p/pl?d=...&nm_mc=AFC-C8Junction&cm_mmc=AFC-C8Junction-_-na-_-na-_-na&cm_sp=&AID=YOUR-ID`
 
-function buyUrls(name: string, neweggDirectUrl?: string) {
-  return {
-    newegg: neweggDirectUrl ?? `https://www.newegg.com/p/pl?d=${encodeURIComponent(name)}`,
-    amazon: `https://www.amazon.com/s?k=${encodeURIComponent(name)}`,
-  };
-}
+// Extract a direct Newegg product URL from a CDN image URL.
 
-function BuyButtons({ name, neweggUrl }: { name: string; neweggUrl?: string }) {
-  const urls = buyUrls(name, neweggUrl);
+function BuyButtons({ name, staticPrice }: { name: string; staticPrice?: number }) {
+  const newegg = `https://www.newegg.com/p/pl?d=${encodeURIComponent(name)}`;
+  const amazon = `https://www.amazon.com/s?k=${encodeURIComponent(name)}`;
+  const est = staticPrice != null ? ` ~$${staticPrice.toFixed(2)}` : "";
   return (
     <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-      <a href={urls.newegg} target="_blank" rel="noopener noreferrer"
+      <a href={newegg} target="_blank" rel="noopener noreferrer"
         onClick={e => e.stopPropagation()}
-        style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 10px",
+        style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "4px 10px",
           borderRadius: 6, fontSize: 11, fontWeight: 600, textDecoration: "none",
           background: "rgba(251,146,60,0.1)", color: "#fb923c",
           border: "1px solid rgba(251,146,60,0.25)", transition: "background 0.12s" }}
         onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = "rgba(251,146,60,0.2)")}
         onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = "rgba(251,146,60,0.1)")}>
-        Newegg ↗
+        Newegg{est} ↗
       </a>
-      <a href={urls.amazon} target="_blank" rel="noopener noreferrer"
+      <a href={amazon} target="_blank" rel="noopener noreferrer"
         onClick={e => e.stopPropagation()}
-        style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 10px",
+        style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "4px 10px",
           borderRadius: 6, fontSize: 11, fontWeight: 600, textDecoration: "none",
           background: "rgba(255,153,0,0.1)", color: "#ffa500",
           border: "1px solid rgba(255,153,0,0.25)", transition: "background 0.12s" }}
         onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = "rgba(255,153,0,0.2)")}
         onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = "rgba(255,153,0,0.1)")}>
-        Amazon ↗
+        Amazon{est} ↗
       </a>
     </div>
   );
@@ -754,7 +753,7 @@ function PartModal({ slot, selected, onSelect, onClose }: {
                           {note.icon} {note.text}
                         </p>
                       )}
-                      <BuyButtons name={part.name} neweggUrl={isSearchResult ? (part as SearchResult).url : undefined} />
+                      <BuyButtons name={part.name} staticPrice={(part as any).price} />
                     </div>
                     <div style={{ textAlign: "right", flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 5 }}>
                       <div style={{ fontSize: 15, fontWeight: 700, color: T.text }}>${(part as any).price}</div>
@@ -780,24 +779,28 @@ function PartModal({ slot, selected, onSelect, onClose }: {
 
 // ─── Budget preset picker ─────────────────────────────────────────────────────
 
-function BudgetPresets({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+function BudgetPresets({ value, onChange, cols = 4 }: { value: number; onChange: (v: number) => void; cols?: number }) {
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: 12 }}>
+    <div style={{ display: "grid", gridTemplateColumns: `repeat(${cols},1fr)`, gap: 8, marginBottom: 12 }}>
       {BUDGET_PRESETS.map(p => {
         const active = value === p.value;
+        const isNoLimit = p.value === NO_BUDGET;
         return (
           <button key={p.label} type="button" onClick={() => onChange(p.value)}
-            style={{ textAlign: "left", padding: "10px 12px", borderRadius: 12, cursor: "pointer",
-              background: active ? "rgba(99,102,241,0.12)" : T.surfaceHi,
-              border: `1px solid ${active ? "rgba(99,102,241,0.5)" : T.border}`,
+            style={{ textAlign: "left", padding: "10px 10px", borderRadius: 12, cursor: "pointer",
+              background: active ? (isNoLimit ? "rgba(251,191,36,0.12)" : "rgba(99,102,241,0.12)") : T.surfaceHi,
+              border: `1px solid ${active ? (isNoLimit ? "rgba(251,191,36,0.5)" : "rgba(99,102,241,0.5)") : T.border}`,
               transition: "all 0.12s", minWidth: 0 }}
             onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.borderColor = T.borderHi; }}
             onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.borderColor = T.border; }}>
-            <div style={{ fontSize: 10, fontWeight: 600, color: active ? T.accentHi : T.textDim,
+            <div style={{ fontSize: 10, fontWeight: 600,
+              color: active ? (isNoLimit ? "#fbbf24" : T.accentHi) : T.textDim,
               letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: 3,
               overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.label}</div>
             <div style={{ fontSize: 15, fontWeight: 700, color: active ? T.text : T.textMid,
-              letterSpacing: "-0.02em", marginBottom: 2 }}>${p.value.toLocaleString()}</div>
+              letterSpacing: "-0.02em", marginBottom: 2 }}>
+              {isNoLimit ? "∞" : `$${p.value.toLocaleString()}`}
+            </div>
             <div style={{ fontSize: 10, color: T.textDim,
               overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.sub}</div>
           </button>
@@ -844,7 +847,6 @@ export default function Home() {
       try {
         const r = await fetch(`/api/search?q=${encodeURIComponent(part.name)}&category=${slot}`);
         const results: { name: string; price: number }[] = await r.json();
-        // Only update if result name closely matches selected part (score > 0.5)
         if (results.length > 0) {
           const top = results[0];
           const score = top.name.toLowerCase().split(/\s+/).filter((w: string) => part.name.toLowerCase().includes(w) && w.length > 2).length;
@@ -862,7 +864,7 @@ export default function Home() {
     e.preventDefault();
     setLoading(true); setAiBuild(null);
     const res  = await fetch("/api/build", { method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ budget: Number(budget), useCase, notes }) });
+      body: JSON.stringify({ budget: Number(budget) === NO_BUDGET ? null : Number(budget), useCase, notes }) });
     setAiBuild(await res.json());
     setLoading(false);
   }
@@ -986,18 +988,20 @@ export default function Home() {
                   <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: 20 }}>
                     <FieldLabel>Budget</FieldLabel>
                     <BudgetPresets value={Number(budget)} onChange={v => setBudget(String(v))} />
-                    <div style={{ position: "relative" }}>
-                      <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)",
-                        fontSize: 13, fontWeight: 600, color: T.textMid }}>$</span>
-                      <input type="text" inputMode="numeric" value={budget}
-                        onChange={e => setBudget(e.target.value.replace(/[^0-9]/g, ""))} required
-                        placeholder="Custom amount"
-                        style={{ width: "100%", padding: "10px 12px 10px 26px", background: T.surfaceHi,
-                          border: `1px solid ${T.border}`, borderRadius: 8, color: T.text,
-                          fontSize: 13, outline: "none", boxSizing: "border-box" }}
-                        onFocus={e => (e.target.style.borderColor = T.accent)}
-                        onBlur={e => (e.target.style.borderColor = T.border)} />
-                    </div>
+                    {Number(budget) !== NO_BUDGET && (
+                      <div style={{ position: "relative" }}>
+                        <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)",
+                          fontSize: 13, fontWeight: 600, color: T.textMid }}>$</span>
+                        <input type="text" inputMode="numeric" value={budget}
+                          onChange={e => setBudget(e.target.value.replace(/[^0-9]/g, ""))}
+                          placeholder="Custom amount"
+                          style={{ width: "100%", padding: "10px 12px 10px 26px", background: T.surfaceHi,
+                            border: `1px solid ${T.border}`, borderRadius: 8, color: T.text,
+                            fontSize: 13, outline: "none", boxSizing: "border-box" }}
+                          onFocus={e => (e.target.style.borderColor = T.accent)}
+                          onBlur={e => (e.target.style.borderColor = T.border)} />
+                      </div>
+                    )}
                   </div>
 
                   <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: 20 }}>
@@ -1149,7 +1153,7 @@ export default function Home() {
                                   {iss.severity === "error" ? "✗" : "△"} {iss.msg}
                                 </div>
                               ))}
-                              <BuyButtons name={picked.name} />
+                              <BuyButtons name={picked.name} staticPrice={(picked as any).price} />
                             </>
                           ) : (
                             <button onClick={() => setOpenSlot(slot)}
@@ -1236,32 +1240,36 @@ export default function Home() {
                   {/* Budget card */}
                   <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: 18 }}>
                     <FieldLabel>Budget</FieldLabel>
-                    <BudgetPresets value={customBudget} onChange={v => { setCustomBudget(v); setCustomBudgetStr(String(v)); }} />
-                    <div style={{ position: "relative", marginBottom: 16 }}>
-                      <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)",
-                        fontSize: 13, fontWeight: 600, color: T.textMid }}>$</span>
-                      <input type="text" inputMode="numeric" value={customBudgetStr}
-                        onChange={e => {
-                          const raw = e.target.value.replace(/[^0-9]/g, "");
-                          setCustomBudgetStr(raw);
-                          if (raw !== "") setCustomBudget(Number(raw));
-                        }}
-                        onBlur={() => {
-                          if (customBudgetStr === "") { setCustomBudgetStr("0"); setCustomBudget(0); }
-                        }}
-                        style={{ width: "100%", padding: "10px 12px 10px 26px", background: T.surfaceHi,
-                          border: `1px solid ${T.border}`, borderRadius: 8, color: T.text,
-                          fontSize: 13, outline: "none", boxSizing: "border-box" }}
-                        onFocus={e => (e.target.style.borderColor = T.accent)}
-                        onBlur={e => (e.target.style.borderColor = T.border)} />
-                    </div>
+                    <BudgetPresets value={customBudget} onChange={v => { setCustomBudget(v); setCustomBudgetStr(String(v)); }} cols={2} />
+                    {customBudget !== NO_BUDGET && (
+                      <div style={{ position: "relative", marginBottom: 16 }}>
+                        <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)",
+                          fontSize: 13, fontWeight: 600, color: T.textMid }}>$</span>
+                        <input type="text" inputMode="numeric" value={customBudgetStr}
+                          onChange={e => {
+                            const raw = e.target.value.replace(/[^0-9]/g, "");
+                            setCustomBudgetStr(raw);
+                            if (raw !== "") setCustomBudget(Number(raw));
+                          }}
+                          onBlur={() => {
+                            if (customBudgetStr === "") { setCustomBudgetStr("0"); setCustomBudget(0); }
+                          }}
+                          style={{ width: "100%", padding: "10px 12px 10px 26px", background: T.surfaceHi,
+                            border: `1px solid ${T.border}`, borderRadius: 8, color: T.text,
+                            fontSize: 13, outline: "none", boxSizing: "border-box" }}
+                          onFocus={e => (e.target.style.borderColor = T.accent)}
+                          onBlur={e => (e.target.style.borderColor = T.border)} />
+                      </div>
+                    )}
 
-                    {/* Progress bar */}
-                    <div style={{ height: 3, borderRadius: 99, background: T.border, overflow: "hidden", marginBottom: 10 }}>
-                      <div style={{ height: "100%", borderRadius: 99, transition: "width 0.3s",
-                        width: `${Math.min(100, (totalWithTax / (customBudget || 1)) * 100)}%`,
-                        background: customRemaining < 0 ? "#ef4444" : T.grad }} />
-                    </div>
+                    {/* Progress bar — hidden when no budget limit */}
+                    {customBudget !== NO_BUDGET && (
+                      <div style={{ height: 3, borderRadius: 99, background: T.border, overflow: "hidden", marginBottom: 10 }}>
+                        <div style={{ height: "100%", borderRadius: 99, transition: "width 0.3s",
+                          width: `${Math.min(100, (totalWithTax / (customBudget || 1)) * 100)}%`,
+                          background: customRemaining < 0 ? "#ef4444" : T.grad }} />
+                      </div>
+                    )}
 
                     <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
                       <div style={{ display: "flex", justifyContent: "space-between" }}>
@@ -1283,13 +1291,15 @@ export default function Home() {
                           ${totalWithTax.toFixed(2)}
                         </span>
                       </div>
-                      <div style={{ display: "flex", justifyContent: "space-between" }}>
-                        <span style={{ fontSize: 11, color: T.textDim }}>Remaining</span>
-                        <span style={{ fontSize: 11, fontWeight: 700,
-                          color: customRemaining < 0 ? "#f87171" : customRemaining < customBudget * 0.1 ? "#f59e0b" : "#34d399" }}>
-                          {customRemaining < 0 ? `-$${Math.abs(customRemaining).toFixed(2)}` : `$${customRemaining.toFixed(2)}`}
-                        </span>
-                      </div>
+                      {customBudget !== NO_BUDGET && (
+                        <div style={{ display: "flex", justifyContent: "space-between" }}>
+                          <span style={{ fontSize: 11, color: T.textDim }}>Remaining</span>
+                          <span style={{ fontSize: 11, fontWeight: 700,
+                            color: customRemaining < 0 ? "#f87171" : customRemaining < customBudget * 0.1 ? "#f59e0b" : "#34d399" }}>
+                            {customRemaining < 0 ? `-$${Math.abs(customRemaining).toFixed(2)}` : `$${customRemaining.toFixed(2)}`}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
 
