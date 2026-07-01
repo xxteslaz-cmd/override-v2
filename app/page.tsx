@@ -1,10 +1,10 @@
 "use client";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import type { SearchResult } from "./api/search/route";
 
 // ─── Part data ────────────────────────────────────────────────────────────────
 
-interface CPUPart  { id: string; name: string; price: number; tier: string; socket: string; perfScore: number; specs: string; }
+interface CPUPart  { id: string; name: string; price: number; tier: string; socket: string; perfScore: number; tdp: number; cores: number; threads: number; baseClock: number; boostClock: number; specs: string; }
 interface GPUPart  { id: string; name: string; price: number; tier: string; vram: number; perfScore: number; specs: string; lengthMm: number; powerW: number; }
 interface MoboPart { id: string; name: string; price: number; tier: string; specs: string; socket: string; formFactor: "ATX" | "mATX" | "ITX"; }
 interface CasePart { id: string; name: string; price: number; tier: string; specs: string; supportedFormFactors: string[]; maxGpuMm: number; }
@@ -13,66 +13,104 @@ interface SimplePart { id: string; name: string; price: number; tier: string; sp
 type AnyPart = CPUPart | GPUPart | MoboPart | CasePart | PSUPart | SimplePart;
 
 const CPUS: CPUPart[] = [
-  { id: "r5-7600",   name: "AMD Ryzen 5 7600",     price: 219, tier: "budget", socket: "AM5",     perfScore: 6,  specs: "6C/12T · 65W · AM5" },
-  { id: "i5-14600k", name: "Intel Core i5-14600K", price: 249, tier: "budget", socket: "LGA1700", perfScore: 7,  specs: "14C/20T · 125W · LGA1700" },
-  { id: "r7-7700x",  name: "AMD Ryzen 7 7700X",    price: 299, tier: "mid",    socket: "AM5",     perfScore: 8,  specs: "8C/16T · 105W · AM5" },
-  { id: "i7-14700k", name: "Intel Core i7-14700K", price: 359, tier: "mid",    socket: "LGA1700", perfScore: 9,  specs: "20C/28T · 125W · LGA1700" },
-  { id: "r9-7950x",  name: "AMD Ryzen 9 7950X",    price: 549, tier: "high",   socket: "AM5",     perfScore: 10, specs: "16C/32T · 170W · AM5" },
-  { id: "i9-14900k", name: "Intel Core i9-14900K", price: 499, tier: "high",   socket: "LGA1700", perfScore: 10, specs: "24C/32T · 125W · LGA1700" },
+  { id: "r3-7300x",   name: "AMD Ryzen 3 7300X",    price: 129, tier: "budget", socket: "AM5",     perfScore: 5,  tdp: 65,  cores: 4,  threads: 8,  baseClock: 4.1, boostClock: 5.0, specs: "4C/8T · 4.1–5.0 GHz · 65W · AM5" },
+  { id: "r5-7500f",   name: "AMD Ryzen 5 7500F",    price: 159, tier: "budget", socket: "AM5",     perfScore: 6,  tdp: 65,  cores: 6,  threads: 12, baseClock: 3.7, boostClock: 5.0, specs: "6C/12T · 3.7–5.0 GHz · 65W · AM5 · No iGPU" },
+  { id: "r5-7600",    name: "AMD Ryzen 5 7600",     price: 189, tier: "budget", socket: "AM5",     perfScore: 6,  tdp: 65,  cores: 6,  threads: 12, baseClock: 3.8, boostClock: 5.1, specs: "6C/12T · 3.8–5.1 GHz · 65W · AM5" },
+  { id: "i5-13400f",  name: "Intel Core i5-13400F", price: 169, tier: "budget", socket: "LGA1700", perfScore: 6,  tdp: 65,  cores: 10, threads: 16, baseClock: 2.5, boostClock: 4.6, specs: "10C/16T · 2.5–4.6 GHz · 65W · LGA1700 · No iGPU" },
+  { id: "i5-14600k",  name: "Intel Core i5-14600K", price: 229, tier: "budget", socket: "LGA1700", perfScore: 7,  tdp: 125, cores: 14, threads: 20, baseClock: 3.5, boostClock: 5.3, specs: "14C/20T · 3.5–5.3 GHz · 125W · LGA1700" },
+  { id: "r7-7700",    name: "AMD Ryzen 7 7700",     price: 249, tier: "mid",    socket: "AM5",     perfScore: 8,  tdp: 65,  cores: 8,  threads: 16, baseClock: 3.8, boostClock: 5.3, specs: "8C/16T · 3.8–5.3 GHz · 65W · AM5" },
+  { id: "r7-7700x",   name: "AMD Ryzen 7 7700X",    price: 269, tier: "mid",    socket: "AM5",     perfScore: 8,  tdp: 105, cores: 8,  threads: 16, baseClock: 4.5, boostClock: 5.4, specs: "8C/16T · 4.5–5.4 GHz · 105W · AM5" },
+  { id: "i7-14700",   name: "Intel Core i7-14700",  price: 299, tier: "mid",    socket: "LGA1700", perfScore: 8,  tdp: 65,  cores: 20, threads: 28, baseClock: 2.1, boostClock: 5.4, specs: "20C/28T · 2.1–5.4 GHz · 65W · LGA1700" },
+  { id: "i7-14700k",  name: "Intel Core i7-14700K", price: 339, tier: "mid",    socket: "LGA1700", perfScore: 9,  tdp: 125, cores: 20, threads: 28, baseClock: 3.4, boostClock: 5.6, specs: "20C/28T · 3.4–5.6 GHz · 125W · LGA1700" },
+  { id: "r9-7900x",   name: "AMD Ryzen 9 7900X",    price: 329, tier: "high",   socket: "AM5",     perfScore: 9,  tdp: 170, cores: 12, threads: 24, baseClock: 4.7, boostClock: 5.6, specs: "12C/24T · 4.7–5.6 GHz · 170W · AM5" },
+  { id: "r9-7950x",   name: "AMD Ryzen 9 7950X",    price: 449, tier: "high",   socket: "AM5",     perfScore: 10, tdp: 170, cores: 16, threads: 32, baseClock: 4.5, boostClock: 5.7, specs: "16C/32T · 4.5–5.7 GHz · 170W · AM5" },
+  { id: "i9-14900",   name: "Intel Core i9-14900",  price: 369, tier: "high",   socket: "LGA1700", perfScore: 9,  tdp: 65,  cores: 24, threads: 32, baseClock: 2.0, boostClock: 5.8, specs: "24C/32T · 2.0–5.8 GHz · 65W · LGA1700" },
+  { id: "i9-14900k",  name: "Intel Core i9-14900K", price: 429, tier: "high",   socket: "LGA1700", perfScore: 10, tdp: 125, cores: 24, threads: 32, baseClock: 3.2, boostClock: 6.0, specs: "24C/32T · 3.2–6.0 GHz · 125W · LGA1700" },
+  { id: "r9-7950x3d", name: "AMD Ryzen 9 7950X3D",  price: 579, tier: "high",   socket: "AM5",     perfScore: 10, tdp: 120, cores: 16, threads: 32, baseClock: 4.2, boostClock: 5.7, specs: "16C/32T · 4.2–5.7 GHz · 120W · AM5 · 3D V-Cache" },
 ];
 const GPUS: GPUPart[] = [
-  { id: "rx6600",     name: "AMD RX 6600",              price: 179, tier: "budget", vram: 8,  perfScore: 4,  specs: "8 GB · 1080p",       lengthMm: 240, powerW: 132 },
-  { id: "rtx4060",    name: "NVIDIA RTX 4060",          price: 299, tier: "budget", vram: 8,  perfScore: 6,  specs: "8 GB · 1080p/1440p", lengthMm: 240, powerW: 115 },
-  { id: "rx7600",     name: "AMD RX 7600",              price: 269, tier: "budget", vram: 8,  perfScore: 5,  specs: "8 GB · 1080p",       lengthMm: 215, powerW: 165 },
-  { id: "rtx4060ti",  name: "NVIDIA RTX 4060 Ti",       price: 399, tier: "mid",   vram: 16, perfScore: 7,  specs: "16 GB · 1440p",      lengthMm: 240, powerW: 165 },
-  { id: "rx7700xt",   name: "AMD RX 7700 XT",           price: 349, tier: "mid",   vram: 12, perfScore: 7,  specs: "12 GB · 1440p",      lengthMm: 267, powerW: 245 },
-  { id: "rtx4070",    name: "NVIDIA RTX 4070",          price: 549, tier: "mid",   vram: 12, perfScore: 8,  specs: "12 GB · 1440p/4K",   lengthMm: 285, powerW: 200 },
-  { id: "rx7800xt",   name: "AMD RX 7800 XT",           price: 449, tier: "mid",   vram: 16, perfScore: 8,  specs: "16 GB · 1440p/4K",   lengthMm: 276, powerW: 263 },
-  { id: "rtx4070tis", name: "NVIDIA RTX 4070 Ti Super", price: 799, tier: "high",  vram: 16, perfScore: 9,  specs: "16 GB · 4K",         lengthMm: 336, powerW: 285 },
-  { id: "rx7900xtx",  name: "AMD RX 7900 XTX",         price: 849, tier: "high",  vram: 24, perfScore: 9,  specs: "24 GB · 4K",         lengthMm: 287, powerW: 355 },
-  { id: "rtx4080s",   name: "NVIDIA RTX 4080 Super",    price: 999, tier: "high",  vram: 16, perfScore: 10, specs: "16 GB · 4K",         lengthMm: 336, powerW: 320 },
-  { id: "rtx4090",    name: "NVIDIA RTX 4090",          price: 1599,tier: "ultra", vram: 24, perfScore: 10, specs: "24 GB · 4K ultra",   lengthMm: 336, powerW: 450 },
+  { id: "rx6600",      name: "AMD RX 6600",               price: 149, tier: "budget", vram: 8,  perfScore: 4,  specs: "8 GB · 1080p",            lengthMm: 240, powerW: 132 },
+  { id: "rx7600",      name: "AMD RX 7600",               price: 219, tier: "budget", vram: 8,  perfScore: 5,  specs: "8 GB · 1080p",            lengthMm: 215, powerW: 165 },
+  { id: "rtx4060",     name: "NVIDIA RTX 4060",           price: 289, tier: "budget", vram: 8,  perfScore: 6,  specs: "8 GB · 1080p/1440p",      lengthMm: 240, powerW: 115 },
+  { id: "rx6700",      name: "AMD RX 6700",               price: 249, tier: "budget", vram: 10, perfScore: 5,  specs: "10 GB · 1080p/1440p",     lengthMm: 267, powerW: 175 },
+  { id: "rtx3060",     name: "NVIDIA RTX 3060",           price: 199, tier: "budget", vram: 12, perfScore: 5,  specs: "12 GB · 1080p",           lengthMm: 242, powerW: 170 },
+  { id: "rtx4060ti",   name: "NVIDIA RTX 4060 Ti",        price: 369, tier: "mid",    vram: 16, perfScore: 7,  specs: "16 GB · 1440p",           lengthMm: 240, powerW: 165 },
+  { id: "rx7700xt",    name: "AMD RX 7700 XT",            price: 319, tier: "mid",    vram: 12, perfScore: 7,  specs: "12 GB · 1440p",           lengthMm: 267, powerW: 245 },
+  { id: "rx7800xt",    name: "AMD RX 7800 XT",            price: 419, tier: "mid",    vram: 16, perfScore: 8,  specs: "16 GB · 1440p/4K",        lengthMm: 276, powerW: 263 },
+  { id: "rtx4070",     name: "NVIDIA RTX 4070",           price: 499, tier: "mid",    vram: 12, perfScore: 8,  specs: "12 GB · 1440p/4K",        lengthMm: 285, powerW: 200 },
+  { id: "rtx4070s",    name: "NVIDIA RTX 4070 Super",     price: 549, tier: "mid",    vram: 12, perfScore: 8,  specs: "12 GB · 1440p/4K",        lengthMm: 285, powerW: 220 },
+  { id: "rx7900xt",    name: "AMD RX 7900 XT",            price: 629, tier: "high",   vram: 20, perfScore: 9,  specs: "20 GB · 4K",              lengthMm: 287, powerW: 315 },
+  { id: "rtx4070ti",   name: "NVIDIA RTX 4070 Ti",        price: 679, tier: "high",   vram: 12, perfScore: 9,  specs: "12 GB · 4K",              lengthMm: 336, powerW: 285 },
+  { id: "rtx4070tis",  name: "NVIDIA RTX 4070 Ti Super",  price: 749, tier: "high",   vram: 16, perfScore: 9,  specs: "16 GB · 4K",              lengthMm: 336, powerW: 285 },
+  { id: "rx7900xtx",   name: "AMD RX 7900 XTX",          price: 799, tier: "high",   vram: 24, perfScore: 9,  specs: "24 GB · 4K",              lengthMm: 287, powerW: 355 },
+  { id: "rtx4080s",    name: "NVIDIA RTX 4080 Super",     price: 949, tier: "high",   vram: 16, perfScore: 10, specs: "16 GB · 4K",              lengthMm: 336, powerW: 320 },
+  { id: "rtx4090",     name: "NVIDIA RTX 4090",           price: 1549,tier: "ultra",  vram: 24, perfScore: 10, specs: "24 GB · 4K ultra",        lengthMm: 336, powerW: 450 },
 ];
 const MOTHERBOARDS: MoboPart[] = [
-  { id: "b650-plus",  name: "MSI B650 Gaming Plus",     price: 159, tier: "budget", socket: "AM5",     formFactor: "ATX",  specs: "AM5 · DDR5 · PCIe 5.0" },
-  { id: "b760-pro",   name: "ASUS Prime B760M-A",       price: 139, tier: "budget", socket: "LGA1700", formFactor: "mATX", specs: "LGA1700 · DDR5 · PCIe 4.0" },
-  { id: "x670-f",     name: "ASUS ROG Strix X670E-F",   price: 329, tier: "mid",    socket: "AM5",     formFactor: "ATX",  specs: "AM5 · DDR5 · PCIe 5.0 · WiFi 6E" },
-  { id: "z790-edge",  name: "MSI MEG Z790 Edge",        price: 299, tier: "mid",    socket: "LGA1700", formFactor: "ATX",  specs: "LGA1700 · DDR5 · PCIe 5.0 · WiFi 6E" },
-  { id: "b650m-itx",  name: "ASRock B650I Lightning",   price: 229, tier: "mid",    socket: "AM5",     formFactor: "ITX",  specs: "AM5 · DDR5 · Mini-ITX" },
-  { id: "x670e-hero", name: "ASUS ROG Crosshair X670E", price: 499, tier: "high",   socket: "AM5",     formFactor: "ATX",  specs: "AM5 · DDR5 · Flagship VRM" },
+  { id: "b650m-ds",    name: "Gigabyte B650M DS3H",        price: 109, tier: "budget", socket: "AM5",     formFactor: "mATX", specs: "AM5 · DDR5 · PCIe 5.0 · mATX" },
+  { id: "b650-plus",   name: "MSI B650 Gaming Plus",       price: 159, tier: "budget", socket: "AM5",     formFactor: "ATX",  specs: "AM5 · DDR5 · PCIe 5.0 · ATX" },
+  { id: "b760m-pro",   name: "ASUS Prime B760M-A",         price: 129, tier: "budget", socket: "LGA1700", formFactor: "mATX", specs: "LGA1700 · DDR5 · PCIe 4.0 · mATX" },
+  { id: "b760-pro",    name: "MSI PRO B760-P WiFi",        price: 149, tier: "budget", socket: "LGA1700", formFactor: "ATX",  specs: "LGA1700 · DDR5 · PCIe 4.0 · WiFi" },
+  { id: "b650m-itx",   name: "ASRock B650I Lightning",     price: 229, tier: "mid",    socket: "AM5",     formFactor: "ITX",  specs: "AM5 · DDR5 · Mini-ITX" },
+  { id: "x670-f",      name: "ASUS ROG Strix X670E-F",     price: 329, tier: "mid",    socket: "AM5",     formFactor: "ATX",  specs: "AM5 · DDR5 · PCIe 5.0 · WiFi 6E" },
+  { id: "z790-edge",   name: "MSI MEG Z790 Edge",          price: 299, tier: "mid",    socket: "LGA1700", formFactor: "ATX",  specs: "LGA1700 · DDR5 · PCIe 5.0 · WiFi 6E" },
+  { id: "z790-aorus",  name: "Gigabyte Z790 Aorus Elite",  price: 279, tier: "mid",    socket: "LGA1700", formFactor: "ATX",  specs: "LGA1700 · DDR5 · PCIe 5.0 · WiFi 6E" },
+  { id: "x670e-hero",  name: "ASUS ROG Crosshair X670E",   price: 499, tier: "high",   socket: "AM5",     formFactor: "ATX",  specs: "AM5 · DDR5 · Flagship VRM" },
+  { id: "z790-apex",   name: "ASUS ROG Maximus Z790 Apex", price: 599, tier: "high",   socket: "LGA1700", formFactor: "ATX",  specs: "LGA1700 · DDR5 · Extreme OC · 10Gb LAN" },
 ];
 const RAMS: SimplePart[] = [
-  { id: "ddr5-16",  name: "16 GB DDR5-6000",  price: 59,  tier: "budget", specs: "2×8 GB · DDR5-6000 · CL30" },
-  { id: "ddr5-32a", name: "32 GB DDR5-6000",  price: 99,  tier: "mid",    specs: "2×16 GB · DDR5-6000 · CL30" },
-  { id: "ddr5-32b", name: "32 GB DDR5-6400",  price: 119, tier: "mid",    specs: "2×16 GB · DDR5-6400 · CL32" },
-  { id: "ddr5-64",  name: "64 GB DDR5-6000",  price: 189, tier: "high",   specs: "2×32 GB · DDR5-6000 · CL30" },
+  { id: "ddr5-16-5600", name: "16 GB DDR5-5600",   price: 45,  tier: "budget", specs: "2×8 GB · DDR5-5600 · CL36" },
+  { id: "ddr5-16",      name: "16 GB DDR5-6000",   price: 59,  tier: "budget", specs: "2×8 GB · DDR5-6000 · CL30" },
+  { id: "ddr5-32a",     name: "32 GB DDR5-6000",   price: 89,  tier: "mid",    specs: "2×16 GB · DDR5-6000 · CL30" },
+  { id: "ddr5-32b",     name: "32 GB DDR5-6400",   price: 109, tier: "mid",    specs: "2×16 GB · DDR5-6400 · CL32" },
+  { id: "ddr5-32c",     name: "32 GB DDR5-6800",   price: 129, tier: "mid",    specs: "2×16 GB · DDR5-6800 · CL34 · XMP 3.0" },
+  { id: "ddr5-64",      name: "64 GB DDR5-6000",   price: 169, tier: "high",   specs: "2×32 GB · DDR5-6000 · CL30" },
+  { id: "ddr5-64b",     name: "64 GB DDR5-6400",   price: 199, tier: "high",   specs: "2×32 GB · DDR5-6400 · CL32 · RGB" },
+  { id: "ddr5-96",      name: "96 GB DDR5-6000",   price: 279, tier: "high",   specs: "2×48 GB · DDR5-6000 · CL30" },
 ];
 const STORAGES: SimplePart[] = [
-  { id: "ssd-1tb-g3", name: "1 TB NVMe Gen 3 SSD", price: 49,  tier: "budget", specs: "3,500/3,000 MB/s · PCIe 3.0" },
-  { id: "ssd-1tb-g4", name: "1 TB NVMe Gen 4 SSD", price: 69,  tier: "budget", specs: "7,000/6,500 MB/s · PCIe 4.0" },
-  { id: "ssd-2tb-g4", name: "2 TB NVMe Gen 4 SSD", price: 119, tier: "mid",    specs: "7,000/6,500 MB/s · PCIe 4.0" },
-  { id: "ssd-4tb-g4", name: "4 TB NVMe Gen 4 SSD", price: 249, tier: "high",   specs: "7,200/6,900 MB/s · PCIe 4.0" },
+  { id: "ssd-500-g4",  name: "500 GB NVMe Gen 4 SSD",  price: 45,  tier: "budget", specs: "5,000/4,200 MB/s · PCIe 4.0 · M.2" },
+  { id: "ssd-1tb-g3",  name: "1 TB NVMe Gen 3 SSD",   price: 49,  tier: "budget", specs: "3,500/3,000 MB/s · PCIe 3.0 · M.2" },
+  { id: "ssd-1tb-g4",  name: "1 TB NVMe Gen 4 SSD",   price: 69,  tier: "budget", specs: "7,000/6,500 MB/s · PCIe 4.0 · M.2" },
+  { id: "ssd-2tb-g4",  name: "2 TB NVMe Gen 4 SSD",   price: 109, tier: "mid",    specs: "7,000/6,500 MB/s · PCIe 4.0 · M.2" },
+  { id: "ssd-2tb-g4b", name: "2 TB NVMe Gen 4 SSD Pro",price: 139, tier: "mid",    specs: "7,400/6,900 MB/s · PCIe 4.0 · M.2" },
+  { id: "ssd-4tb-g4",  name: "4 TB NVMe Gen 4 SSD",   price: 239, tier: "high",   specs: "7,200/6,900 MB/s · PCIe 4.0 · M.2" },
+  { id: "ssd-2tb-g5",  name: "2 TB NVMe Gen 5 SSD",   price: 199, tier: "high",   specs: "12,000/11,000 MB/s · PCIe 5.0 · M.2" },
+  { id: "ssd-4tb-g5",  name: "4 TB NVMe Gen 5 SSD",   price: 399, tier: "high",   specs: "12,000/11,000 MB/s · PCIe 5.0 · M.2" },
 ];
 const PSUS: PSUPart[] = [
-  { id: "psu-650g",  name: "Corsair RM650x",              price: 89,  tier: "budget", watts: 650,  specs: "650W · 80+ Gold · Fully modular" },
-  { id: "psu-750g",  name: "Seasonic Focus GX-750",       price: 109, tier: "mid",    watts: 750,  specs: "750W · 80+ Gold · Fully modular" },
-  { id: "psu-850p",  name: "be quiet! Straight Power 850W", price: 139, tier: "mid",  watts: 850,  specs: "850W · 80+ Platinum · Fully modular" },
-  { id: "psu-1000t", name: "Corsair HX1000",              price: 189, tier: "high",   watts: 1000, specs: "1000W · 80+ Titanium · Fully modular" },
+  { id: "psu-550g",  name: "EVGA SuperNOVA 550 G6",       price: 69,  tier: "budget", watts: 550,  specs: "550W · 80+ Gold · Fully modular" },
+  { id: "psu-650g",  name: "Corsair RM650x",               price: 89,  tier: "budget", watts: 650,  specs: "650W · 80+ Gold · Fully modular" },
+  { id: "psu-750g",  name: "Seasonic Focus GX-750",        price: 109, tier: "mid",    watts: 750,  specs: "750W · 80+ Gold · Fully modular" },
+  { id: "psu-750p",  name: "be quiet! Pure Power 12M 750W",price: 99,  tier: "mid",    watts: 750,  specs: "750W · 80+ Gold · Semi-modular" },
+  { id: "psu-850p",  name: "be quiet! Straight Power 850W",price: 139, tier: "mid",    watts: 850,  specs: "850W · 80+ Platinum · Fully modular" },
+  { id: "psu-850g",  name: "Corsair RM850x",               price: 129, tier: "mid",    watts: 850,  specs: "850W · 80+ Gold · Fully modular" },
+  { id: "psu-1000t", name: "Corsair HX1000",               price: 189, tier: "high",   watts: 1000, specs: "1000W · 80+ Platinum · Fully modular" },
+  { id: "psu-1200p", name: "Seasonic PRIME TX-1200",       price: 279, tier: "high",   watts: 1200, specs: "1200W · 80+ Titanium · Fully modular" },
 ];
 const CASES: CasePart[] = [
-  { id: "h5-flow",  name: "NZXT H5 Flow",             price: 89,  tier: "budget", supportedFormFactors: ["ATX","mATX","ITX"],          maxGpuMm: 365, specs: "Mid-tower · ATX/mATX/ITX · 365mm GPU" },
-  { id: "meshify",  name: "Fractal Meshify C",         price: 99,  tier: "budget", supportedFormFactors: ["ATX","mATX","ITX"],          maxGpuMm: 315, specs: "Mid-tower · ATX/mATX/ITX · 315mm GPU" },
-  { id: "o11-evo",  name: "Lian Li O11 Dynamic EVO",  price: 169, tier: "mid",    supportedFormFactors: ["ATX","mATX","ITX"],          maxGpuMm: 446, specs: "Mid-tower · ATX/mATX/ITX · 446mm GPU" },
-  { id: "define7",  name: "Fractal Design Define 7",   price: 189, tier: "mid",    supportedFormFactors: ["E-ATX","ATX","mATX","ITX"],  maxGpuMm: 491, specs: "Full-tower · E-ATX · 491mm GPU" },
-  { id: "nr200p",   name: "Cooler Master NR200P",      price: 99,  tier: "mid",    supportedFormFactors: ["ITX"],                       maxGpuMm: 330, specs: "ITX only · 330mm GPU · Compact" },
-  { id: "phanteks", name: "Phanteks Enthoo 719",       price: 219, tier: "high",   supportedFormFactors: ["E-ATX","ATX","mATX","ITX"],  maxGpuMm: 503, specs: "Full-tower · E-ATX · 503mm GPU" },
+  { id: "h5-flow",   name: "NZXT H5 Flow",              price: 89,  tier: "budget", supportedFormFactors: ["ATX","mATX","ITX"],         maxGpuMm: 365, specs: "Mid-tower · ATX/mATX/ITX · 365mm GPU" },
+  { id: "meshify",   name: "Fractal Meshify C",          price: 99,  tier: "budget", supportedFormFactors: ["ATX","mATX","ITX"],         maxGpuMm: 315, specs: "Mid-tower · ATX/mATX/ITX · 315mm GPU" },
+  { id: "p400a",     name: "Phanteks Eclipse P400A",     price: 79,  tier: "budget", supportedFormFactors: ["ATX","mATX","ITX"],         maxGpuMm: 355, specs: "Mid-tower · ATX/mATX · Mesh front" },
+  { id: "4000d",     name: "Corsair 4000D Airflow",      price: 94,  tier: "budget", supportedFormFactors: ["ATX","mATX","ITX"],         maxGpuMm: 360, specs: "Mid-tower · ATX/mATX · Mesh front" },
+  { id: "nr200p",    name: "Cooler Master NR200P",       price: 99,  tier: "mid",    supportedFormFactors: ["ITX"],                      maxGpuMm: 330, specs: "ITX · 330mm GPU · Compact" },
+  { id: "o11-evo",   name: "Lian Li O11 Dynamic EVO",   price: 169, tier: "mid",    supportedFormFactors: ["ATX","mATX","ITX"],         maxGpuMm: 446, specs: "Mid-tower · ATX/mATX/ITX · 446mm GPU" },
+  { id: "define7",   name: "Fractal Design Define 7",    price: 189, tier: "mid",    supportedFormFactors: ["E-ATX","ATX","mATX","ITX"], maxGpuMm: 491, specs: "Full-tower · E-ATX · 491mm GPU" },
+  { id: "h7-flow",   name: "NZXT H7 Flow",               price: 129, tier: "mid",    supportedFormFactors: ["ATX","mATX","ITX"],         maxGpuMm: 400, specs: "Mid-tower · ATX/mATX/ITX · 400mm GPU" },
+  { id: "phanteks",  name: "Phanteks Enthoo 719",        price: 219, tier: "high",   supportedFormFactors: ["E-ATX","ATX","mATX","ITX"], maxGpuMm: 503, specs: "Full-tower · E-ATX · 503mm GPU" },
+  { id: "o11-xl",    name: "Lian Li O11 Dynamic XL",     price: 199, tier: "high",   supportedFormFactors: ["E-ATX","ATX","mATX","ITX"], maxGpuMm: 480, specs: "Full-tower · E-ATX · 480mm GPU" },
 ];
 const COOLERS: SimplePart[] = [
-  { id: "wraith",    name: "AMD Wraith Stealth (Stock)", price: 0,   tier: "budget", specs: "Included · 65W TDP max" },
-  { id: "nh-u12s",   name: "Noctua NH-U12S",             price: 79,  tier: "mid",    specs: "Single-tower · 158mm · Quiet" },
-  { id: "nh-d15",    name: "Noctua NH-D15",              price: 99,  tier: "mid",    specs: "Dual-tower · Best air cooling" },
-  { id: "kraken240", name: "NZXT Kraken 240 AIO",        price: 109, tier: "mid",    specs: "240mm AIO · 2× 120mm fans" },
-  { id: "kraken360", name: "NZXT Kraken 360 AIO",        price: 149, tier: "high",   specs: "360mm AIO · 3× 120mm fans" },
+  { id: "wraith",     name: "AMD Wraith Stealth (Stock)", price: 0,   tier: "budget", specs: "Included · Up to 65W TDP" },
+  { id: "hyper212",   name: "Cooler Master Hyper 212",   price: 35,  tier: "budget", specs: "Single-tower · 150mm · 120mm fan" },
+  { id: "nh-u12s",    name: "Noctua NH-U12S",            price: 79,  tier: "mid",    specs: "Single-tower · 158mm · 120mm fan" },
+  { id: "nh-d15",     name: "Noctua NH-D15",             price: 99,  tier: "mid",    specs: "Dual-tower · 165mm · Best air cooler" },
+  { id: "be-dark5",   name: "be quiet! Dark Rock 5",     price: 89,  tier: "mid",    specs: "Single-tower · 162mm · Silent" },
+  { id: "kraken240",  name: "NZXT Kraken 240 AIO",       price: 109, tier: "mid",    specs: "240mm AIO · 2× 120mm fans" },
+  { id: "kraken280",  name: "NZXT Kraken 280 AIO",       price: 129, tier: "mid",    specs: "280mm AIO · 2× 140mm fans" },
+  { id: "kraken360",  name: "NZXT Kraken 360 AIO",       price: 149, tier: "high",   specs: "360mm AIO · 3× 120mm fans" },
+  { id: "lc360",      name: "Corsair iCUE H150i Elite",  price: 169, tier: "high",   specs: "360mm AIO · 3× 120mm · LCD display" },
+  { id: "nh-d15g2",   name: "Noctua NH-D15 G2",          price: 149, tier: "high",   specs: "Dual-tower · 168mm · Top-tier air" },
 ];
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -124,9 +162,9 @@ function getCompatIssues(s: SelectedParts): CompatIssue[] {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const BUDGET_PRESETS = [
-  { label: "Budget",    sub: "Entry-level gaming",  value: 700  },
-  { label: "Mid-Range", sub: "1440p / streaming",   value: 1300 },
-  { label: "High-End",  sub: "4K / content creation", value: 2200 },
+  { label: "Low End",  sub: "Entry-level gaming",  value: 700  },
+  { label: "Mid End",  sub: "1440p / streaming",   value: 1300 },
+  { label: "High End", sub: "4K / content creation", value: 2200 },
 ];
 
 const COMPONENT_META: Record<ComponentKey, { label: string; icon: string }> = {
@@ -149,10 +187,10 @@ const STATIC_PARTS: Record<ComponentKey, AnyPart[]> = {
 
 const TIER_COLORS: Record<string, { bg: string; text: string; border: string }> = {
   budget: { bg: "rgba(16,185,129,0.1)",  text: "#34d399", border: "rgba(16,185,129,0.25)" },
-  mid:    { bg: "rgba(99,102,241,0.1)",  text: "#818cf8", border: "rgba(99,102,241,0.25)" },
+  mid:    { bg: "rgba(14,165,233,0.1)",  text: "#38bdf8", border: "rgba(14,165,233,0.25)" },
   high:   { bg: "rgba(168,85,247,0.1)",  text: "#c084fc", border: "rgba(168,85,247,0.25)" },
   ultra:  { bg: "rgba(251,146,60,0.1)",  text: "#fb923c", border: "rgba(251,146,60,0.25)" },
-  search: { bg: "rgba(99,102,241,0.1)",  text: "#818cf8", border: "rgba(99,102,241,0.25)" },
+  search: { bg: "rgba(14,165,233,0.1)",  text: "#38bdf8", border: "rgba(14,165,233,0.25)" },
 };
 
 function gpuPairingNote(gpu: GPUPart, cpu?: CPUPart) {
@@ -203,20 +241,46 @@ function BuyButtons({ name, neweggUrl }: { name: string; neweggUrl?: string }) {
   );
 }
 
+// ─── State sales tax rates (2024) ────────────────────────────────────────────
+
+const STATE_TAX: Record<string, number> = {
+  AL:0.04,AK:0,AZ:0.056,AR:0.065,CA:0.0725,CO:0.029,CT:0.0635,DE:0,
+  FL:0.06,GA:0.04,HI:0.04,ID:0.06,IL:0.0625,IN:0.07,IA:0.06,KS:0.065,
+  KY:0.06,LA:0.0445,ME:0.055,MD:0.06,MA:0.0625,MI:0.06,MN:0.06875,
+  MS:0.07,MO:0.04225,MT:0,NE:0.055,NV:0.0685,NH:0,NJ:0.06625,NM:0.05125,
+  NY:0.04,NC:0.0475,ND:0.05,OH:0.0575,OK:0.045,OR:0,PA:0.06,RI:0.07,
+  SC:0.06,SD:0.045,TN:0.07,TX:0.0625,UT:0.061,VT:0.06,VA:0.053,
+  WA:0.065,WV:0.06,WI:0.05,WY:0.04,DC:0.06,
+};
+
+const US_STATES = [
+  ["AL","Alabama"],["AK","Alaska"],["AZ","Arizona"],["AR","Arkansas"],["CA","California"],
+  ["CO","Colorado"],["CT","Connecticut"],["DE","Delaware"],["DC","D.C."],["FL","Florida"],
+  ["GA","Georgia"],["HI","Hawaii"],["ID","Idaho"],["IL","Illinois"],["IN","Indiana"],
+  ["IA","Iowa"],["KS","Kansas"],["KY","Kentucky"],["LA","Louisiana"],["ME","Maine"],
+  ["MD","Maryland"],["MA","Massachusetts"],["MI","Michigan"],["MN","Minnesota"],["MS","Mississippi"],
+  ["MO","Missouri"],["MT","Montana"],["NE","Nebraska"],["NV","Nevada"],["NH","New Hampshire"],
+  ["NJ","New Jersey"],["NM","New Mexico"],["NY","New York"],["NC","North Carolina"],["ND","North Dakota"],
+  ["OH","Ohio"],["OK","Oklahoma"],["OR","Oregon"],["PA","Pennsylvania"],["RI","Rhode Island"],
+  ["SC","South Carolina"],["SD","South Dakota"],["TN","Tennessee"],["TX","Texas"],["UT","Utah"],
+  ["VT","Vermont"],["VA","Virginia"],["WA","Washington"],["WV","West Virginia"],["WI","Wisconsin"],
+  ["WY","Wyoming"],
+] as const;
+
 // ─── Design tokens ────────────────────────────────────────────────────────────
 
 const T = {
-  bg:        "#080910",
-  surface:   "#0f1117",
-  surfaceHi: "#141620",
-  border:    "#1c1e2e",
-  borderHi:  "#252840",
-  text:      "#e8eaf5",
-  textMid:   "#9294a8",
-  textDim:   "#4b4e6a",
-  accent:    "#6366f1",
-  accentHi:  "#818cf8",
-  grad:      "linear-gradient(135deg, #6366f1, #8b5cf6)",
+  bg:        "#07090f",
+  surface:   "#0d1117",
+  surfaceHi: "#131820",
+  border:    "#1a1f2e",
+  borderHi:  "#222840",
+  text:      "#e2e8f0",
+  textMid:   "#8892a4",
+  textDim:   "#434d60",
+  accent:    "#0ea5e9",
+  accentHi:  "#38bdf8",
+  grad:      "linear-gradient(135deg, #0284c7, #0ea5e9)",
 };
 
 // ─── Shared UI pieces ─────────────────────────────────────────────────────────
@@ -242,15 +306,162 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
 
 // ─── Part picker modal ────────────────────────────────────────────────────────
 
+// Stat bar definitions per slot
+const SLOT_STATS: Partial<Record<ComponentKey, { key: string; label: string; max: number; unit?: string; lowerBetter?: boolean }[]>> = {
+  cpu: [
+    { key: "perfScore", label: "Performance", max: 10 },
+    { key: "tdp",       label: "TDP",         max: 200, unit: "W", lowerBetter: true },
+  ],
+  gpu: [
+    { key: "perfScore", label: "Performance", max: 10 },
+    { key: "vram",      label: "VRAM",        max: 24, unit: "GB" },
+    { key: "powerW",    label: "Power Draw",  max: 450, unit: "W", lowerBetter: true },
+  ],
+  psu: [
+    { key: "watts", label: "Wattage", max: 1200, unit: "W" },
+  ],
+  case: [
+    { key: "maxGpuMm", label: "GPU Clearance", max: 503, unit: "mm" },
+  ],
+};
+
+function StatBar({ value, max, lowerBetter }: { value: number; max: number; lowerBetter?: boolean }) {
+  const pct = Math.min(100, (value / max) * 100);
+  const color = lowerBetter
+    ? pct < 40 ? "#34d399" : pct < 70 ? "#fcd34d" : "#f87171"
+    : pct < 40 ? "#60a5fa" : pct < 70 ? "#a78bfa" : "#34d399";
+  return (
+    <div style={{ flex: 1, height: 4, borderRadius: 99, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
+      <div style={{ height: "100%", width: `${pct}%`, borderRadius: 99, background: color, transition: "width 0.2s" }} />
+    </div>
+  );
+}
+
+// ─── Hardware slot icons ──────────────────────────────────────────────────────
+
+function SlotIcon({ slot, size = 48 }: { slot: ComponentKey; size?: number }) {
+  const s = size;
+  const icons: Record<ComponentKey, JSX.Element> = {
+    cpu: (
+      <svg width={s} height={s} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="13" y="13" width="22" height="22" rx="3" fill="#0ea5e9" opacity="0.15" stroke="#0ea5e9" strokeWidth="1.5"/>
+        <rect x="17" y="17" width="14" height="14" rx="1.5" fill="#0ea5e9" opacity="0.3"/>
+        <rect x="20" y="20" width="8" height="8" rx="1" fill="#0ea5e9" opacity="0.7"/>
+        {[16,20,24,28].map(y => <line key={`l${y}`} x1="6" y1={y} x2="13" y2={y} stroke="#0ea5e9" strokeWidth="1.5" strokeLinecap="round"/>)}
+        {[16,20,24,28].map(y => <line key={`r${y}`} x1="35" y1={y} x2="42" y2={y} stroke="#0ea5e9" strokeWidth="1.5" strokeLinecap="round"/>)}
+        {[16,20,24,28].map(x => <line key={`t${x}`} x1={x} y1="6" x2={x} y2="13" stroke="#0ea5e9" strokeWidth="1.5" strokeLinecap="round"/>)}
+        {[16,20,24,28].map(x => <line key={`b${x}`} x1={x} y1="35" x2={x} y2="42" stroke="#0ea5e9" strokeWidth="1.5" strokeLinecap="round"/>)}
+      </svg>
+    ),
+    gpu: (
+      <svg width={s} height={s} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="4" y="15" width="36" height="20" rx="3" fill="#8b5cf6" opacity="0.15" stroke="#8b5cf6" strokeWidth="1.5"/>
+        <circle cx="16" cy="25" r="6" fill="#8b5cf6" opacity="0.2" stroke="#8b5cf6" strokeWidth="1.2"/>
+        <circle cx="16" cy="25" r="2.5" fill="#8b5cf6" opacity="0.8"/>
+        <circle cx="30" cy="25" r="6" fill="#8b5cf6" opacity="0.2" stroke="#8b5cf6" strokeWidth="1.2"/>
+        <circle cx="30" cy="25" r="2.5" fill="#8b5cf6" opacity="0.8"/>
+        <rect x="8" y="35" width="30" height="3" rx="1" fill="#8b5cf6" opacity="0.5"/>
+        <line x1="40" y1="18" x2="44" y2="18" stroke="#8b5cf6" strokeWidth="1.5" strokeLinecap="round"/>
+        <line x1="40" y1="21" x2="44" y2="21" stroke="#8b5cf6" strokeWidth="1.5" strokeLinecap="round"/>
+        <line x1="40" y1="24" x2="44" y2="24" stroke="#8b5cf6" strokeWidth="1.5" strokeLinecap="round"/>
+      </svg>
+    ),
+    motherboard: (
+      <svg width={s} height={s} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="5" y="5" width="38" height="38" rx="3" fill="#10b981" opacity="0.1" stroke="#10b981" strokeWidth="1.5"/>
+        <rect x="10" y="10" width="12" height="12" rx="1.5" fill="#10b981" opacity="0.3" stroke="#10b981" strokeWidth="1"/>
+        <rect x="26" y="10" width="12" height="5" rx="1" fill="#10b981" opacity="0.2" stroke="#10b981" strokeWidth="1"/>
+        <rect x="26" y="17" width="12" height="5" rx="1" fill="#10b981" opacity="0.2" stroke="#10b981" strokeWidth="1"/>
+        <rect x="10" y="26" width="28" height="5" rx="1" fill="#10b981" opacity="0.2" stroke="#10b981" strokeWidth="1"/>
+        <rect x="10" y="33" width="28" height="5" rx="1" fill="#10b981" opacity="0.2" stroke="#10b981" strokeWidth="1"/>
+        <line x1="5" y1="24" x2="43" y2="24" stroke="#10b981" strokeWidth="0.5" opacity="0.4"/>
+        <line x1="24" y1="5" x2="24" y2="43" stroke="#10b981" strokeWidth="0.5" opacity="0.4"/>
+      </svg>
+    ),
+    ram: (
+      <svg width={s} height={s} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="14" y="6" width="8" height="36" rx="2" fill="#f59e0b" opacity="0.15" stroke="#f59e0b" strokeWidth="1.5"/>
+        <rect x="26" y="6" width="8" height="36" rx="2" fill="#f59e0b" opacity="0.15" stroke="#f59e0b" strokeWidth="1.5"/>
+        {[10,14,18,22,26,30,34].map(y => <rect key={`l${y}`} x="15.5" y={y} width="5" height="2" rx="0.5" fill="#f59e0b" opacity="0.6"/>)}
+        {[10,14,18,22,26,30,34].map(y => <rect key={`r${y}`} x="27.5" y={y} width="5" height="2" rx="0.5" fill="#f59e0b" opacity="0.6"/>)}
+        <rect x="14" y="38" width="8" height="4" rx="1" fill="#f59e0b" opacity="0.4"/>
+        <rect x="26" y="38" width="8" height="4" rx="1" fill="#f59e0b" opacity="0.4"/>
+      </svg>
+    ),
+    storage: (
+      <svg width={s} height={s} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="6" y="19" width="36" height="10" rx="2" fill="#06b6d4" opacity="0.15" stroke="#06b6d4" strokeWidth="1.5"/>
+        <rect x="6" y="29" width="36" height="3" rx="1" fill="#06b6d4" opacity="0.3"/>
+        {[10,16,22,28,32,36].map(x => <rect key={x} x={x} y="21" width="3" height="6" rx="0.5" fill="#06b6d4" opacity="0.5"/>)}
+        <circle cx="38" cy="24" r="3" fill="#06b6d4" opacity="0.7"/>
+        <circle cx="38" cy="24" r="1.2" fill="#06b6d4"/>
+      </svg>
+    ),
+    psu: (
+      <svg width={s} height={s} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="6" y="10" width="28" height="28" rx="3" fill="#34d399" opacity="0.1" stroke="#34d399" strokeWidth="1.5"/>
+        <circle cx="20" cy="24" r="8" fill="none" stroke="#34d399" strokeWidth="1.5" opacity="0.5"/>
+        <circle cx="20" cy="24" r="3" fill="#34d399" opacity="0.8"/>
+        <line x1="20" y1="16" x2="20" y2="18" stroke="#34d399" strokeWidth="1.5" strokeLinecap="round"/>
+        <line x1="20" y1="30" x2="20" y2="32" stroke="#34d399" strokeWidth="1.5" strokeLinecap="round"/>
+        <line x1="28" y1="24" x2="30" y2="24" stroke="#34d399" strokeWidth="1.5" strokeLinecap="round"/>
+        <line x1="12" y1="24" x2="10" y2="24" stroke="#34d399" strokeWidth="1.5" strokeLinecap="round"/>
+        <rect x="34" y="15" width="8" height="3" rx="1" fill="#34d399" opacity="0.5"/>
+        <rect x="34" y="20" width="8" height="3" rx="1" fill="#34d399" opacity="0.5"/>
+        <rect x="34" y="25" width="8" height="3" rx="1" fill="#34d399" opacity="0.5"/>
+        <rect x="34" y="30" width="8" height="3" rx="1" fill="#34d399" opacity="0.5"/>
+      </svg>
+    ),
+    case: (
+      <svg width={s} height={s} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="10" y="4" width="22" height="40" rx="3" fill="#6366f1" opacity="0.1" stroke="#6366f1" strokeWidth="1.5"/>
+        <rect x="13" y="8" width="7" height="10" rx="1.5" fill="#6366f1" opacity="0.3" stroke="#6366f1" strokeWidth="1"/>
+        <circle cx="30" cy="12" r="3" fill="#6366f1" opacity="0.5"/>
+        <circle cx="30" cy="12" r="1.2" fill="#6366f1"/>
+        <rect x="13" y="22" width="16" height="14" rx="1.5" fill="none" stroke="#6366f1" strokeWidth="1" opacity="0.4"/>
+        <line x1="13" y1="40" x2="32" y2="40" stroke="#6366f1" strokeWidth="1.5" strokeLinecap="round"/>
+      </svg>
+    ),
+    cooler: (
+      <svg width={s} height={s} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="24" cy="24" r="16" fill="none" stroke="#f43f5e" strokeWidth="1.5" opacity="0.4"/>
+        <circle cx="24" cy="24" r="4" fill="#f43f5e" opacity="0.6"/>
+        <path d="M24 8 C24 8 28 16 24 20 C20 16 24 8 24 8Z" fill="#f43f5e" opacity="0.5"/>
+        <path d="M40 24 C40 24 32 28 28 24 C32 20 40 24 40 24Z" fill="#f43f5e" opacity="0.5"/>
+        <path d="M24 40 C24 40 20 32 24 28 C28 32 24 40 24 40Z" fill="#f43f5e" opacity="0.5"/>
+        <path d="M8 24 C8 24 16 20 20 24 C16 28 8 24 8 24Z" fill="#f43f5e" opacity="0.5"/>
+        <path d="M35.3 12.7 C35.3 12.7 29.3 18.7 24.7 16.7 C26.7 12.1 35.3 12.7 35.3 12.7Z" fill="#f43f5e" opacity="0.4"/>
+        <path d="M35.3 35.3 C35.3 35.3 29.3 29.3 31.3 24.7 C35.9 26.7 35.3 35.3 35.3 35.3Z" fill="#f43f5e" opacity="0.4"/>
+        <path d="M12.7 35.3 C12.7 35.3 18.7 29.3 23.3 31.3 C21.3 35.9 12.7 35.3 12.7 35.3Z" fill="#f43f5e" opacity="0.4"/>
+        <path d="M12.7 12.7 C12.7 12.7 18.7 18.7 16.7 23.3 C12.1 21.3 12.7 12.7 12.7 12.7Z" fill="#f43f5e" opacity="0.4"/>
+      </svg>
+    ),
+  };
+  return icons[slot] ?? null;
+}
+
+// Estimate system wattage given current selections + a candidate part for a slot
+function estimateWatts(sel: SelectedParts, slot: ComponentKey, candidate: AnyPart | null): number {
+  const cpu  = slot === "cpu"  ? (candidate as CPUPart | null)  : sel.cpu;
+  const gpu  = slot === "gpu"  ? (candidate as GPUPart | null)  : sel.gpu;
+  const cpuW = cpu ? cpu.tdp : 0;
+  const gpuW = gpu ? gpu.powerW : 0;
+  return cpuW + gpuW + 80; // 80W for mobo, ram, storage, fans
+}
+
 function PartModal({ slot, selected, onSelect, onClose }: {
   slot: ComponentKey; selected: SelectedParts;
   onSelect: (p: AnyPart) => void; onClose: () => void;
 }) {
   const meta       = COMPONENT_META[slot];
   const staticList = STATIC_PARTS[slot] as AnyPart[];
-  const [query,     setQuery]     = useState("");
-  const [results,   setResults]   = useState<SearchResult[]>([]);
-  const [searching, setSearching] = useState(false);
+  const [query,        setQuery]        = useState("");
+  const [results,      setResults]      = useState<SearchResult[]>([]);
+  const [searching,    setSearching]    = useState(false);
+  const [filterTier,   setFilterTier]   = useState("all");
+  const [filterMfr,    setFilterMfr]    = useState("all");
+  const [filterSocket, setFilterSocket] = useState("all");
+  const [sortBy,       setSortBy]       = useState("default");
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   function handleSearch(val: string) {
@@ -266,31 +477,99 @@ function PartModal({ slot, selected, onSelect, onClose }: {
     }, 500);
   }
 
-  const showSearch  = query.trim().length > 0;
-  const displayList = showSearch ? results : staticList;
-  const selectedId  = (selected as any)[slot]?.id;
+  const showSearch = query.trim().length > 0;
+  const selectedId = (selected as any)[slot]?.id;
   const isGpu = slot === "gpu";
+  const isCpu = slot === "cpu";
+  const stats = SLOT_STATS[slot];
+
+  // Infer manufacturer from part name
+  function getMfr(p: AnyPart): string {
+    const n = p.name;
+    if (n.startsWith("AMD") || n.startsWith("Ryzen") || n.startsWith("EPYC")) return "AMD";
+    if (n.startsWith("Intel") || n.startsWith("Core") || n.startsWith("Xeon")) return "Intel";
+    if (n.startsWith("NVIDIA") || n.startsWith("RTX") || n.startsWith("GTX")) return "NVIDIA";
+    return "Other";
+  }
+
+  // Build filtered + sorted static list
+  let filteredStatic = staticList.slice();
+  if (filterTier !== "all")   filteredStatic = filteredStatic.filter(p => p.tier === filterTier);
+  if (filterMfr  !== "all")   filteredStatic = filteredStatic.filter(p => getMfr(p) === filterMfr);
+  if (filterSocket !== "all" && isCpu) filteredStatic = filteredStatic.filter(p => (p as CPUPart).socket === filterSocket);
+
+  const SORT_FNS: Record<string, (a: AnyPart, b: AnyPart) => number> = {
+    default:     () => 0,
+    price_asc:   (a, b) => a.price - b.price,
+    price_desc:  (a, b) => b.price - a.price,
+    perf:        (a, b) => ((b as any).perfScore ?? 0) - ((a as any).perfScore ?? 0),
+    cores:       (a, b) => ((b as CPUPart).cores ?? 0) - ((a as CPUPart).cores ?? 0),
+    threads:     (a, b) => ((b as CPUPart).threads ?? 0) - ((a as CPUPart).threads ?? 0),
+    clock:       (a, b) => ((b as CPUPart).boostClock ?? 0) - ((a as CPUPart).boostClock ?? 0),
+    vram:        (a, b) => ((b as GPUPart).vram ?? 0) - ((a as GPUPart).vram ?? 0),
+    power:       (a, b) => ((a as any).powerW ?? (a as any).tdp ?? 0) - ((b as any).powerW ?? (b as any).tdp ?? 0),
+    watts:       (a, b) => ((b as PSUPart).watts ?? 0) - ((a as PSUPart).watts ?? 0),
+  };
+  if (sortBy !== "default") filteredStatic = [...filteredStatic].sort(SORT_FNS[sortBy] ?? (() => 0));
+
+  const displayList = showSearch ? results : filteredStatic;
+
+  // Per-part wattage accessor
+  function partWatts(p: AnyPart): number | null {
+    if ((p as CPUPart).tdp != null)    return (p as CPUPart).tdp;
+    if ((p as GPUPart).powerW != null) return (p as GPUPart).powerW;
+    if ((p as PSUPart).watts != null)  return (p as PSUPart).watts;
+    return null;
+  }
+
+  // Available filter options based on slot
+  const mfrOptions: string[] = slot === "gpu"
+    ? ["all", "NVIDIA", "AMD"]
+    : (isCpu ? ["all", "AMD", "Intel"] : []);
+  const socketOptions: string[] = isCpu ? ["all", "AM5", "LGA1700"] : [];
+  const sortOptions: { val: string; label: string }[] = [
+    { val: "default",    label: "Default" },
+    { val: "price_asc",  label: "Price ↑" },
+    { val: "price_desc", label: "Price ↓" },
+    { val: "perf",       label: "Performance" },
+    ...(isCpu ? [
+      { val: "cores",   label: "Core Count" },
+      { val: "threads", label: "Thread Count" },
+      { val: "clock",   label: "Boost Clock" },
+      { val: "power",   label: "TDP (low→high)" },
+    ] : []),
+    ...(isGpu ? [
+      { val: "vram",  label: "VRAM" },
+      { val: "power", label: "Power (low→high)" },
+    ] : []),
+    ...(slot === "psu" ? [{ val: "watts", label: "Wattage" }] : []),
+  ];
+
+  const tiers = [
+    { val: "all",    label: "All" },
+    { val: "budget", label: "Low End" },
+    { val: "mid",    label: "Mid End" },
+    { val: "high",   label: "High End" },
+  ];
 
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex",
       alignItems: "center", justifyContent: "center", padding: 16,
       background: "rgba(4,5,10,0.85)", backdropFilter: "blur(8px)" }}>
-      <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: 620,
-        maxHeight: "82vh", display: "flex", flexDirection: "column",
+      <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: 1100,
+        maxHeight: "92vh", display: "flex", flexDirection: "column",
         background: T.surface, border: `1px solid ${T.borderHi}`,
         borderRadius: 20, overflow: "hidden",
         boxShadow: "0 32px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04)" }}>
 
         {/* Header */}
         <div style={{ padding: "20px 24px 0", flexShrink: 0 }}>
-          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 16 }}>
-            <div>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
-                <span style={{ fontSize: 20 }}>{meta.icon}</span>
-                <span style={{ fontSize: 17, fontWeight: 700, color: T.text, letterSpacing: "-0.02em" }}>{meta.label}</span>
-              </div>
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 14 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 20 }}>{meta.icon}</span>
+              <span style={{ fontSize: 17, fontWeight: 700, color: T.text, letterSpacing: "-0.02em" }}>{meta.label}</span>
               {isGpu && selected.cpu && (
-                <p style={{ fontSize: 12, color: T.textMid, marginLeft: 30 }}>Matched to {selected.cpu.name}</p>
+                <span style={{ fontSize: 12, color: T.textDim }}>· matched to {selected.cpu.name}</span>
               )}
             </div>
             <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 8, border: `1px solid ${T.border}`,
@@ -299,15 +578,14 @@ function PartModal({ slot, selected, onSelect, onClose }: {
           </div>
 
           {/* Search */}
-          <div style={{ position: "relative", marginBottom: 16 }}>
+          <div style={{ position: "relative", marginBottom: 12 }}>
             <span style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)",
               fontSize: 14, color: T.textDim, pointerEvents: "none" }}>⌕</span>
             <input autoFocus type="text" value={query} onChange={e => handleSearch(e.target.value)}
               placeholder={`Search Newegg for ${meta.label.toLowerCase()}…`}
               style={{ width: "100%", padding: "10px 14px 10px 38px", background: T.bg,
                 border: `1px solid ${T.border}`, borderRadius: 10, color: T.text,
-                fontSize: 14, outline: "none", boxSizing: "border-box",
-                transition: "border-color 0.15s" }}
+                fontSize: 14, outline: "none", boxSizing: "border-box" }}
               onFocus={e => (e.target.style.borderColor = T.accent)}
               onBlur={e => (e.target.style.borderColor = T.border)} />
             {searching && (
@@ -316,23 +594,85 @@ function PartModal({ slot, selected, onSelect, onClose }: {
             )}
           </div>
 
+          {/* Filter + sort controls */}
+          {!showSearch && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
+              {/* Tier pills */}
+              <div style={{ display: "flex", gap: 4 }}>
+                {tiers.map(t => (
+                  <button key={t.val} onClick={() => setFilterTier(t.val)}
+                    style={{ padding: "3px 10px", borderRadius: 99, fontSize: 11, fontWeight: 600,
+                      cursor: "pointer", border: `1px solid ${filterTier === t.val ? T.accent : T.border}`,
+                      background: filterTier === t.val ? "rgba(14,165,233,0.15)" : "transparent",
+                      color: filterTier === t.val ? T.accentHi : T.textDim, transition: "all 0.1s" }}>
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Manufacturer pills */}
+              {mfrOptions.length > 0 && (
+                <>
+                  <div style={{ width: 1, height: 16, background: T.border }} />
+                  <div style={{ display: "flex", gap: 4 }}>
+                    {mfrOptions.map(m => (
+                      <button key={m} onClick={() => setFilterMfr(m)}
+                        style={{ padding: "3px 10px", borderRadius: 99, fontSize: 11, fontWeight: 600,
+                          cursor: "pointer", border: `1px solid ${filterMfr === m ? T.accent : T.border}`,
+                          background: filterMfr === m ? "rgba(14,165,233,0.15)" : "transparent",
+                          color: filterMfr === m ? T.accentHi : T.textDim, transition: "all 0.1s" }}>
+                        {m === "all" ? "All Brands" : m}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {/* Socket pills */}
+              {socketOptions.length > 0 && (
+                <>
+                  <div style={{ width: 1, height: 16, background: T.border }} />
+                  <div style={{ display: "flex", gap: 4 }}>
+                    {socketOptions.map(s => (
+                      <button key={s} onClick={() => setFilterSocket(s)}
+                        style={{ padding: "3px 10px", borderRadius: 99, fontSize: 11, fontWeight: 600,
+                          cursor: "pointer", border: `1px solid ${filterSocket === s ? T.accent : T.border}`,
+                          background: filterSocket === s ? "rgba(14,165,233,0.15)" : "transparent",
+                          color: filterSocket === s ? T.accentHi : T.textDim, transition: "all 0.1s" }}>
+                        {s === "all" ? "All Sockets" : s}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {/* Sort dropdown */}
+              <div style={{ marginLeft: "auto" }}>
+                <select value={sortBy} onChange={e => setSortBy(e.target.value)}
+                  style={{ padding: "4px 8px", background: T.surfaceHi, border: `1px solid ${T.border}`,
+                    borderRadius: 7, color: T.textMid, fontSize: 11, outline: "none", cursor: "pointer" }}>
+                  {sortOptions.map(o => <option key={o.val} value={o.val}>{o.label}</option>)}
+                </select>
+              </div>
+            </div>
+          )}
 
           <div style={{ height: 1, background: T.border, margin: "0 -24px" }} />
         </div>
 
         {/* List */}
-        <div style={{ overflowY: "auto", flex: 1, padding: "12px 16px 16px" }}>
+        <div style={{ overflowY: "auto", flex: 1, padding: "10px 16px 16px" }}>
           {displayList.length === 0 && !searching && (
             <div style={{ textAlign: "center", padding: "48px 0", color: T.textDim, fontSize: 14 }}>
-              {showSearch ? "No results — try a different search" : "No parts available"}
+              {showSearch ? "No results — try a different search" : "No parts in this tier"}
             </div>
           )}
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
             {displayList.map((part, i) => {
               const isSearchResult = "source" in part;
-              const pid  = isSearchResult ? `s-${i}` : (part as AnyPart).id;
+              const pid   = isSearchResult ? `s-${i}` : (part as AnyPart).id;
               const isSel = !isSearchResult && pid === selectedId;
-              const note = isGpu && !isSearchResult ? gpuPairingNote(part as GPUPart, selected.cpu) : null;
+              const note  = isGpu && !isSearchResult ? gpuPairingNote(part as GPUPart, selected.cpu) : null;
 
               return (
                 <button key={pid}
@@ -344,32 +684,65 @@ function PartModal({ slot, selected, onSelect, onClose }: {
                     }
                     onClose();
                   }}
-                  style={{ textAlign: "left", padding: "14px 16px", borderRadius: 12, cursor: "pointer",
-                    background: isSel ? "rgba(99,102,241,0.12)" : "rgba(255,255,255,0.02)",
-                    border: `1px solid ${isSel ? "rgba(99,102,241,0.5)" : T.border}`,
-                    transition: "all 0.12s" }}
-                  onMouseEnter={e => { if (!isSel) { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.04)"; (e.currentTarget as HTMLElement).style.borderColor = T.borderHi; } }}
-                  onMouseLeave={e => { if (!isSel) { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.02)"; (e.currentTarget as HTMLElement).style.borderColor = T.border; } }}>
-                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
-                        <span style={{ fontSize: 14, fontWeight: 600, color: T.text, letterSpacing: "-0.01em" }}>{part.name}</span>
-                        {!isSearchResult && <TierBadge tier={(part as AnyPart).tier} />}
+                  style={{ textAlign: "left", padding: "12px 14px", borderRadius: 12, cursor: "pointer",
+                    background: isSel ? "rgba(14,165,233,0.1)" : "rgba(255,255,255,0.02)",
+                    border: `1px solid ${isSel ? T.accent : T.border}`,
+                    transition: "all 0.1s" }}
+>
+                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+                    {/* Part icon */}
+                    {!isSearchResult && (
+                      <div style={{ flexShrink: 0, width: 48, height: 48, borderRadius: 10,
+                        background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)",
+                        display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <SlotIcon slot={slot} size={36} />
                       </div>
-                      <p style={{ fontSize: 12, color: T.textMid, margin: 0 }}>{(part as any).specs}</p>
+                    )}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      {/* Name row */}
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3, flexWrap: "wrap" }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: T.text, letterSpacing: "-0.01em" }}>{part.name}</span>
+                        {!isSearchResult && <TierBadge tier={(part as AnyPart).tier} />}
+                        {isSel && <span style={{ fontSize: 10, fontWeight: 700, color: T.accent,
+                          background: "rgba(14,165,233,0.15)", borderRadius: 4, padding: "1px 6px" }}>SELECTED</span>}
+                      </div>
+                      {/* Specs */}
+                      <p style={{ fontSize: 11, color: T.textMid, margin: "0 0 6px" }}>{(part as any).specs}</p>
+                      {/* Stat bars */}
+                      {stats && !isSearchResult && (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 6 }}>
+                          {stats.map(s => {
+                            const val = (part as any)[s.key];
+                            if (val == null) return null;
+                            return (
+                              <div key={s.key} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                <span style={{ fontSize: 10, color: T.textDim, width: 80, flexShrink: 0 }}>{s.label}</span>
+                                <StatBar value={val} max={s.max} lowerBetter={s.lowerBetter} />
+                                <span style={{ fontSize: 10, fontWeight: 600, color: T.textMid, width: 48, textAlign: "right", flexShrink: 0 }}>
+                                  {val}{s.unit ?? ""}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                       {note && (
-                        <p style={{ fontSize: 12, fontWeight: 500, marginTop: 6, color: note.color }}>
+                        <p style={{ fontSize: 11, fontWeight: 500, margin: "0 0 4px", color: note.color }}>
                           {note.icon} {note.text}
                         </p>
                       )}
-                      <BuyButtons
-                        name={part.name}
-                        neweggUrl={isSearchResult ? (part as SearchResult).url : undefined}
-                      />
+                      <BuyButtons name={part.name} neweggUrl={isSearchResult ? (part as SearchResult).url : undefined} />
                     </div>
-                    <div style={{ textAlign: "right", flexShrink: 0 }}>
+                    <div style={{ textAlign: "right", flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 5 }}>
                       <div style={{ fontSize: 15, fontWeight: 700, color: T.text }}>${(part as any).price}</div>
-                      {isSel && <div style={{ fontSize: 11, color: T.accent, fontWeight: 600, marginTop: 2 }}>Selected</div>}
+                      {!isSearchResult && (() => { const w = partWatts(part as AnyPart); return w != null ? (
+                        <div style={{ fontSize: 10, fontWeight: 600, color: slot === "psu" ? "#34d399" : "#f59e0b",
+                          background: slot === "psu" ? "rgba(52,211,153,0.1)" : "rgba(245,158,11,0.1)",
+                          border: `1px solid ${slot === "psu" ? "rgba(52,211,153,0.2)" : "rgba(245,158,11,0.2)"}`,
+                          borderRadius: 5, padding: "2px 6px" }}>
+                          ⚡ {w}W{slot === "psu" ? " max" : ""}
+                        </div>
+                      ) : null; })()}
                     </div>
                   </div>
                 </button>
@@ -391,17 +764,19 @@ function BudgetPresets({ value, onChange }: { value: number; onChange: (v: numbe
         const active = value === p.value;
         return (
           <button key={p.label} type="button" onClick={() => onChange(p.value)}
-            style={{ textAlign: "left", padding: "14px 16px", borderRadius: 12, cursor: "pointer",
+            style={{ textAlign: "left", padding: "10px 12px", borderRadius: 12, cursor: "pointer",
               background: active ? "rgba(99,102,241,0.12)" : T.surfaceHi,
               border: `1px solid ${active ? "rgba(99,102,241,0.5)" : T.border}`,
-              transition: "all 0.12s" }}
+              transition: "all 0.12s", minWidth: 0 }}
             onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.borderColor = T.borderHi; }}
             onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.borderColor = T.border; }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: active ? T.accentHi : T.textDim,
-              letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: 4 }}>{p.label}</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: active ? T.text : T.textMid,
+            <div style={{ fontSize: 10, fontWeight: 600, color: active ? T.accentHi : T.textDim,
+              letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: 3,
+              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.label}</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: active ? T.text : T.textMid,
               letterSpacing: "-0.02em", marginBottom: 2 }}>${p.value.toLocaleString()}</div>
-            <div style={{ fontSize: 11, color: T.textDim }}>{p.sub}</div>
+            <div style={{ fontSize: 10, color: T.textDim,
+              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.sub}</div>
           </button>
         );
       })}
@@ -421,8 +796,44 @@ export default function Home() {
   const [selected,     setSelected]     = useState<SelectedParts>({});
   const [openSlot,     setOpenSlot]     = useState<ComponentKey | null>(null);
   const [customBudget, setCustomBudget] = useState(1300);
+  const [customBudgetStr, setCustomBudgetStr] = useState("1300");
   const [mode,         setMode]         = useState<"ai" | "custom">("ai");
   const [tab,          setTab]          = useState<"build" | "prebuilt">("build");
+  const [stateCode,    setStateCode]    = useState("");
+  const [livePrices,   setLivePrices]   = useState<Record<string, number>>({});
+  const [fetchingPrices, setFetchingPrices] = useState(false);
+
+  useEffect(() => {
+    fetch("https://ipapi.co/json/")
+      .then(r => r.json())
+      .then(d => { if (d.region_code && STATE_TAX[d.region_code] !== undefined) setStateCode(d.region_code); })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const slots = Object.keys(selected) as ComponentKey[];
+    if (!slots.length) return;
+    setFetchingPrices(true);
+    const updates: Record<string, number> = {};
+    Promise.all(slots.map(async slot => {
+      const part = (selected as any)[slot] as AnyPart;
+      if (!part) return;
+      try {
+        const r = await fetch(`/api/search?q=${encodeURIComponent(part.name)}&category=${slot}`);
+        const results: { name: string; price: number }[] = await r.json();
+        // Only update if result name closely matches selected part (score > 0.5)
+        if (results.length > 0) {
+          const top = results[0];
+          const score = top.name.toLowerCase().split(/\s+/).filter((w: string) => part.name.toLowerCase().includes(w) && w.length > 2).length;
+          const threshold = Math.floor(part.name.split(/\s+/).filter((w: string) => w.length > 2).length * 0.6);
+          if (score >= threshold && top.price > 0) updates[slot] = top.price;
+        }
+      } catch {}
+    })).then(() => {
+      setLivePrices(prev => ({ ...prev, ...updates }));
+      setFetchingPrices(false);
+    });
+  }, [selected]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -433,9 +844,24 @@ export default function Home() {
     setLoading(false);
   }
 
-  const customTotal     = Object.values(selected).reduce((s, p) => s + ((p as any)?.price ?? 0), 0);
-  const customRemaining = customBudget - customTotal;
+  const customTotal = (Object.keys(selected) as ComponentKey[]).reduce((s, slot) => {
+    const p = (selected as any)[slot] as AnyPart | undefined;
+    return s + (livePrices[slot] ?? (p as any)?.price ?? 0);
+  }, 0);
+  const taxRate      = stateCode ? (STATE_TAX[stateCode] ?? 0) : 0;
+  const taxAmount    = Math.round(customTotal * taxRate * 100) / 100;
+  const totalWithTax = customTotal + taxAmount;
+  const customRemaining = customBudget - totalWithTax;
   const compatIssues    = getCompatIssues(selected);
+
+  // Wattage breakdown
+  const wattCpu      = selected.cpu?.tdp ?? 0;
+  const wattGpu      = selected.gpu?.powerW ?? 0;
+  const wattPlatform = (selected.motherboard ? 25 : 0) + (selected.ram ? 8 : 0) + (selected.storage ? 5 : 0) + (selected.cooler ? 6 : 0);
+  const wattTotal    = wattCpu + wattGpu + wattPlatform;
+  const wattPsu      = selected.psu?.watts ?? 0;
+  const wattPct      = wattPsu ? Math.min(100, (wattTotal / wattPsu) * 100) : 0;
+  const wattOverload = wattPsu > 0 && wattTotal > wattPsu * 0.85;
 
   return (
     <>
@@ -448,26 +874,22 @@ export default function Home() {
       <main style={{ minHeight: "100vh", background: T.bg, color: T.text,
         fontFamily: "var(--font-geist-sans), 'Inter', system-ui, sans-serif" }}>
 
-        {/* Nav */}
-        <nav style={{ borderBottom: `1px solid ${T.border}`, position: "sticky", top: 0, zIndex: 10,
-          backdropFilter: "blur(12px)", background: "rgba(8,9,16,0.85)" }}>
-          <div style={{ maxWidth: 680, margin: "0 auto", padding: "0 24px",
-            height: 56, display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{ width: 30, height: 30, borderRadius: 8, background: T.grad,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 13, fontWeight: 800, color: "#fff", letterSpacing: "-0.02em", flexShrink: 0 }}>O</div>
-            <span style={{ fontSize: 15, fontWeight: 700, color: T.text, letterSpacing: "-0.02em" }}>Override</span>
-            <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.06em", padding: "3px 8px",
-              borderRadius: 99, background: "rgba(99,102,241,0.12)", color: T.accent,
-              border: `1px solid rgba(99,102,241,0.2)`, textTransform: "uppercase" }}>Beta</span>
-            {/* Nav tabs */}
-            <div style={{ marginLeft: "auto", display: "flex", gap: 2 }}>
+        {/* ── Nav ── */}
+        <nav style={{ borderBottom: `1px solid ${T.border}`, background: T.surface,
+          position: "sticky", top: 0, zIndex: 10 }}>
+          <div style={{ maxWidth: 1400, margin: "0 auto", padding: "0 32px",
+            height: 50, display: "flex", alignItems: "center", gap: 10 }}>
+            <img src="/android-chrome-192x192.png" alt="Override"
+              style={{ width: 24, height: 24, borderRadius: 5, flexShrink: 0 }} />
+            <span style={{ fontSize: 14, fontWeight: 600, color: T.text, letterSpacing: "-0.01em" }}>Override</span>
+            <div style={{ marginLeft: "auto", display: "flex", gap: 1,
+              background: T.surfaceHi, borderRadius: 7, padding: 3, border: `1px solid ${T.border}` }}>
               {(["build", "prebuilt"] as const).map(t => (
                 <button key={t} onClick={() => setTab(t)}
-                  style={{ padding: "6px 14px", borderRadius: 8, fontSize: 13, fontWeight: 600,
+                  style={{ padding: "4px 14px", borderRadius: 5, fontSize: 12, fontWeight: 500,
                     cursor: "pointer", border: "none", transition: "all 0.15s", textTransform: "capitalize",
-                    background: tab === t ? "rgba(255,255,255,0.08)" : "transparent",
-                    color: tab === t ? T.text : T.textMid }}>
+                    background: tab === t ? T.borderHi : "transparent",
+                    color: tab === t ? T.text : T.textDim }}>
                   {t}
                 </button>
               ))}
@@ -475,279 +897,454 @@ export default function Home() {
           </div>
         </nav>
 
+        {/* ── Prebuilt ── */}
         {tab === "prebuilt" && (
-          <div style={{ maxWidth: 680, margin: "0 auto", padding: "80px 24px",
+          <div style={{ maxWidth: 1400, margin: "0 auto", padding: "80px 32px",
             display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <span style={{ fontSize: 18, color: T.textMid, fontWeight: 500 }}>working</span>
+            <span style={{ fontSize: 16, color: T.textDim }}>working</span>
           </div>
         )}
 
-        {tab === "build" && (<div style={{ maxWidth: 680, margin: "0 auto", padding: "48px 24px 80px" }}>
+        {/* ── Build ── */}
+        {tab === "build" && (
+          <div style={{ maxWidth: 1400, margin: "0 auto", padding: "28px 32px 80px" }}>
 
-          {/* Hero */}
-          <div style={{ marginBottom: 40 }}>
-            <h1 style={{ fontSize: 36, fontWeight: 800, letterSpacing: "-0.04em", lineHeight: 1.1,
-              margin: "0 0 12px",
-              background: "linear-gradient(135deg, #e8eaf5 0%, #9294a8 100%)",
-              WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-              Build your perfect PC
-            </h1>
-            <p style={{ fontSize: 15, color: T.textMid, margin: 0, lineHeight: 1.6 }}>
-              Automatically generate a build or hand-pick every part — with live Newegg prices and compatibility checks.
-            </p>
-          </div>
+            {/* Page header row */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
+              <div>
+                <h1 style={{ fontSize: 22, fontWeight: 700, color: T.text, margin: "0 0 4px",
+                  letterSpacing: "-0.03em" }}>Build a PC</h1>
+                <p style={{ fontSize: 13, color: T.textDim, margin: 0 }}>
+                  Pick parts manually or generate a build automatically
+                </p>
+              </div>
+              {/* Mode toggle */}
+              <div style={{ display: "flex", background: T.surfaceHi, border: `1px solid ${T.border}`,
+                borderRadius: 9, padding: 3, gap: 2 }}>
+                {(["ai", "custom"] as const).map(m => (
+                  <button key={m} onClick={() => setMode(m)}
+                    style={{ padding: "7px 18px", borderRadius: 7, fontSize: 12, fontWeight: 600,
+                      cursor: "pointer", border: "none", transition: "all 0.15s",
+                      background: mode === m ? T.grad : "transparent",
+                      color: mode === m ? "#fff" : T.textMid,
+                      boxShadow: mode === m ? "0 2px 8px rgba(99,102,241,0.3)" : "none" }}>
+                    {m === "ai" ? "⚡ Make Build" : "⚙ Custom Build"}
+                  </button>
+                ))}
+              </div>
+            </div>
 
-          {/* Mode tabs */}
-          <div style={{ display: "inline-flex", background: T.surfaceHi, border: `1px solid ${T.border}`,
-            borderRadius: 12, padding: 4, marginBottom: 36, gap: 2 }}>
-            {(["ai", "custom"] as const).map(m => (
-              <button key={m} onClick={() => setMode(m)}
-                style={{ padding: "8px 20px", borderRadius: 9, fontSize: 13, fontWeight: 600,
-                  cursor: "pointer", transition: "all 0.15s", border: "none",
-                  background: mode === m ? T.grad : "transparent",
-                  color: mode === m ? "#fff" : T.textMid,
-                  boxShadow: mode === m ? "0 2px 8px rgba(99,102,241,0.35)" : "none" }}>
-                {m === "ai" ? "⚡  Make Build" : "⚙  Custom Build"}
-              </button>
-            ))}
-          </div>
+            {/* ── MAKE BUILD (AI) ── */}
+            {mode === "ai" && (
+              <div style={{ display: "grid", gridTemplateColumns: "380px 1fr", gap: 28, alignItems: "start" }}>
+                <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                  <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: 20 }}>
+                    <FieldLabel>Budget</FieldLabel>
+                    <BudgetPresets value={Number(budget)} onChange={v => setBudget(String(v))} />
+                    <div style={{ position: "relative" }}>
+                      <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)",
+                        fontSize: 13, fontWeight: 600, color: T.textMid }}>$</span>
+                      <input type="text" inputMode="numeric" value={budget}
+                        onChange={e => setBudget(e.target.value.replace(/[^0-9]/g, ""))} required
+                        placeholder="Custom amount"
+                        style={{ width: "100%", padding: "10px 12px 10px 26px", background: T.surfaceHi,
+                          border: `1px solid ${T.border}`, borderRadius: 8, color: T.text,
+                          fontSize: 13, outline: "none", boxSizing: "border-box" }}
+                        onFocus={e => (e.target.style.borderColor = T.accent)}
+                        onBlur={e => (e.target.style.borderColor = T.border)} />
+                    </div>
+                  </div>
 
-          {/* ── AI BUILD ── */}
-          {mode === "ai" && (
-            <form onSubmit={handleSubmit}>
-              <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
+                  <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: 20 }}>
+                    <FieldLabel>Use case</FieldLabel>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                      {([["gaming","🎮","Gaming"],["video editing","🎬","Video Editing"],["programming","💻","Programming"],["general use","🖥️","General Use"]] as const).map(([val, icon, label]) => {
+                        const active = useCase === val;
+                        return (
+                          <button key={val} type="button" onClick={() => setUseCase(val)}
+                            style={{ padding: "10px 14px", borderRadius: 8, cursor: "pointer",
+                              display: "flex", alignItems: "center", gap: 9, transition: "all 0.12s",
+                              background: active ? "rgba(99,102,241,0.12)" : T.surfaceHi,
+                              border: `1px solid ${active ? "rgba(99,102,241,0.4)" : T.border}` }}>
+                            <span style={{ fontSize: 16 }}>{icon}</span>
+                            <span style={{ fontSize: 12, fontWeight: 600, color: active ? T.accentHi : T.textMid }}>{label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
 
-                {/* Budget */}
-                <div>
-                  <FieldLabel>Budget</FieldLabel>
-                  <BudgetPresets value={Number(budget)} onChange={v => setBudget(String(v))} />
-                  <div style={{ position: "relative" }}>
-                    <span style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)",
-                      fontSize: 14, fontWeight: 600, color: T.textMid }}>$</span>
-                    <input type="number" value={budget} onChange={e => setBudget(e.target.value)} required
-                      placeholder="Custom amount"
-                      style={{ width: "100%", padding: "11px 14px 11px 30px", background: T.surfaceHi,
-                        border: `1px solid ${T.border}`, borderRadius: 10, color: T.text,
-                        fontSize: 14, outline: "none", boxSizing: "border-box" }}
+                  <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: 20 }}>
+                    <FieldLabel>Notes <span style={{ textTransform: "none", fontWeight: 400, color: T.textDim }}>(optional)</span></FieldLabel>
+                    <input type="text" value={notes} onChange={e => setNotes(e.target.value)}
+                      placeholder="e.g. prefer AMD, already have a case, want RGB"
+                      style={{ width: "100%", padding: "10px 12px", background: T.surfaceHi,
+                        border: `1px solid ${T.border}`, borderRadius: 8, color: T.text,
+                        fontSize: 13, outline: "none", boxSizing: "border-box" }}
                       onFocus={e => (e.target.style.borderColor = T.accent)}
                       onBlur={e => (e.target.style.borderColor = T.border)} />
                   </div>
-                </div>
 
-                {/* Use case */}
-                <div>
-                  <FieldLabel>Use case</FieldLabel>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                    {([["gaming","🎮","Gaming"],["video editing","🎬","Video Editing"],["programming","💻","Programming"],["general use","🖥️","General Use"]] as const).map(([val, icon, label]) => {
-                      const active = useCase === val;
-                      return (
-                        <button key={val} type="button" onClick={() => setUseCase(val)}
-                          style={{ padding: "12px 16px", borderRadius: 10, cursor: "pointer",
-                            display: "flex", alignItems: "center", gap: 10, transition: "all 0.12s",
-                            background: active ? "rgba(99,102,241,0.12)" : T.surfaceHi,
-                            border: `1px solid ${active ? "rgba(99,102,241,0.4)" : T.border}` }}
-                          onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.borderColor = T.borderHi; }}
-                          onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.borderColor = T.border; }}>
-                          <span style={{ fontSize: 18 }}>{icon}</span>
-                          <span style={{ fontSize: 13, fontWeight: 600, color: active ? T.accentHi : T.textMid }}>{label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
+                  <button type="submit" disabled={loading}
+                    style={{ padding: "13px 24px", borderRadius: 10, border: "none",
+                      cursor: loading ? "not-allowed" : "pointer",
+                      background: loading ? T.surfaceHi : T.grad,
+                      color: loading ? T.textDim : "#fff",
+                      fontSize: 14, fontWeight: 700, letterSpacing: "-0.01em",
+                      boxShadow: loading ? "none" : "0 4px 20px rgba(99,102,241,0.35)",
+                      transition: "all 0.15s" }}>
+                    {loading ? "Generating…" : "Generate Build →"}
+                  </button>
+                </form>
 
-                {/* Notes */}
-                <div>
-                  <FieldLabel>Notes <span style={{ textTransform: "none", fontWeight: 400, color: T.textDim }}>(optional)</span></FieldLabel>
-                  <input type="text" value={notes} onChange={e => setNotes(e.target.value)}
-                    placeholder="e.g. prefer AMD, already have a case, want RGB"
-                    style={{ width: "100%", padding: "11px 14px", background: T.surfaceHi,
-                      border: `1px solid ${T.border}`, borderRadius: 10, color: T.text,
-                      fontSize: 14, outline: "none", boxSizing: "border-box" }}
-                    onFocus={e => (e.target.style.borderColor = T.accent)}
-                    onBlur={e => (e.target.style.borderColor = T.border)} />
-                </div>
-
-                <button type="submit" disabled={loading}
-                  style={{ padding: "14px 24px", borderRadius: 12, border: "none", cursor: loading ? "not-allowed" : "pointer",
-                    background: loading ? T.surfaceHi : T.grad, color: loading ? T.textDim : "#fff",
-                    fontSize: 15, fontWeight: 700, letterSpacing: "-0.01em",
-                    boxShadow: loading ? "none" : "0 4px 20px rgba(99,102,241,0.4)",
-                    transition: "all 0.15s" }}>
-                  {loading ? "Generating your build…" : "Generate Build →"}
-                </button>
-              </div>
-            </form>
-          )}
-
-          {/* AI Result */}
-          {mode === "ai" && aiBuild && (
-            <div style={{ marginTop: 40 }}>
-              <h2 style={{ fontSize: 18, fontWeight: 700, letterSpacing: "-0.02em", color: T.text, marginBottom: 16 }}>
-                Your Build
-              </h2>
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                {Object.entries(aiBuild).filter(([k]) => k !== "totalEstimate").map(([key, val]: [string, any]) => (
-                  <div key={key} style={{ padding: "16px 20px", borderRadius: 12,
-                    background: T.surfaceHi, border: `1px solid ${T.border}`,
-                    display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase",
-                        color: T.textDim, marginBottom: 4 }}>
-                        {COMPONENT_META[key as ComponentKey]?.icon} {COMPONENT_META[key as ComponentKey]?.label ?? key}
-                      </div>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: T.text, marginBottom: 4 }}>{val.name}</div>
-                      <div style={{ fontSize: 12, color: T.textMid, lineHeight: 1.5 }}>{val.reason}</div>
+                {/* Results */}
+                {aiBuild ? (
+                  <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, overflow: "hidden" }}>
+                    <div style={{ padding: "14px 20px", borderBottom: `1px solid ${T.border}`,
+                      background: T.surfaceHi, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: T.text }}>Generated Build</span>
+                      <span style={{ fontSize: 18, fontWeight: 800, color: T.text, letterSpacing: "-0.02em" }}>
+                        ${aiBuild.totalEstimate?.toLocaleString()}
+                      </span>
                     </div>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: T.text, flexShrink: 0 }}>${val.price}</div>
-                  </div>
-                ))}
-                <div style={{ padding: "16px 20px", borderRadius: 12,
-                  background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.3)",
-                  display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontSize: 14, fontWeight: 700, color: T.accentHi }}>Total estimate</span>
-                  <span style={{ fontSize: 18, fontWeight: 800, color: T.text, letterSpacing: "-0.02em" }}>
-                    ${aiBuild.totalEstimate?.toLocaleString()}
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ── CUSTOM BUILD ── */}
-          {mode === "custom" && (
-            <div>
-              {/* Budget */}
-              <div style={{ marginBottom: 28 }}>
-                <FieldLabel>Your Budget</FieldLabel>
-                <BudgetPresets value={customBudget} onChange={setCustomBudget} />
-                <div style={{ position: "relative" }}>
-                  <span style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)",
-                    fontSize: 14, fontWeight: 600, color: T.textMid }}>$</span>
-                  <input type="number" value={customBudget} onChange={e => setCustomBudget(Number(e.target.value))}
-                    style={{ width: "100%", padding: "11px 14px 11px 30px", background: T.surfaceHi,
-                      border: `1px solid ${T.border}`, borderRadius: 10, color: T.text,
-                      fontSize: 14, outline: "none", boxSizing: "border-box" }}
-                    onFocus={e => (e.target.style.borderColor = T.accent)}
-                    onBlur={e => (e.target.style.borderColor = T.border)} />
-                </div>
-              </div>
-
-              {/* Budget bar */}
-              <div style={{ padding: "16px 20px", borderRadius: 12, background: T.surfaceHi,
-                border: `1px solid ${T.border}`, marginBottom: 20 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10 }}>
-                  <span style={{ fontSize: 13, color: T.textMid }}>
-                    Spent <strong style={{ color: T.text, fontWeight: 700 }}>${customTotal.toLocaleString()}</strong>
-                    <span style={{ color: T.textDim }}> of ${customBudget.toLocaleString()}</span>
-                  </span>
-                  <span style={{ fontSize: 13, fontWeight: 700,
-                    color: customRemaining < 0 ? "#f87171" : customRemaining < customBudget * 0.1 ? "#f59e0b" : "#34d399" }}>
-                    {customRemaining < 0 ? `$${Math.abs(customRemaining)} over` : `$${customRemaining.toLocaleString()} left`}
-                  </span>
-                </div>
-                <div style={{ height: 4, borderRadius: 99, background: T.border, overflow: "hidden" }}>
-                  <div style={{ height: "100%", borderRadius: 99, transition: "width 0.3s",
-                    width: `${Math.min(100, (customTotal / customBudget) * 100)}%`,
-                    background: customRemaining < 0 ? "#f87171" : T.grad }} />
-                </div>
-              </div>
-
-              {/* Compatibility warnings */}
-              {compatIssues.length > 0 && (
-                <div style={{ padding: "14px 16px", borderRadius: 12, marginBottom: 16,
-                  background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.2)" }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: "#f87171", letterSpacing: "0.04em",
-                    textTransform: "uppercase", marginBottom: 8 }}>Compatibility Issues</div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                    {compatIssues.map((iss, i) => (
-                      <div key={i} style={{ fontSize: 12, display: "flex", gap: 8, lineHeight: 1.5,
-                        color: iss.severity === "error" ? "#fca5a5" : "#fcd34d" }}>
-                        <span style={{ flexShrink: 0 }}>{iss.severity === "error" ? "✗" : "△"}</span>
-                        <span>{iss.msg}</span>
+                    {Object.entries(aiBuild).filter(([k]) => k !== "totalEstimate").map(([key, val]: [string, any], idx, arr) => (
+                      <div key={key} style={{ display: "grid", gridTemplateColumns: "140px 1fr 80px",
+                        padding: "12px 20px", gap: 12,
+                        borderBottom: idx < arr.length - 1 ? `1px solid ${T.border}` : "none",
+                        background: idx % 2 === 0 ? "transparent" : "rgba(255,255,255,0.01)" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                          <span style={{ fontSize: 14 }}>{COMPONENT_META[key as ComponentKey]?.icon}</span>
+                          <span style={{ fontSize: 11, fontWeight: 600, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                            {COMPONENT_META[key as ComponentKey]?.label ?? key}
+                          </span>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: T.text, marginBottom: 2 }}>{val.name}</div>
+                          <div style={{ fontSize: 11, color: T.textDim, lineHeight: 1.5 }}>{val.reason}</div>
+                        </div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: T.text, textAlign: "right", paddingTop: 2 }}>
+                          ${val.price}
+                        </div>
                       </div>
                     ))}
                   </div>
-                </div>
-              )}
+                ) : !loading ? (
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center",
+                    minHeight: 320, border: `1px dashed ${T.border}`, borderRadius: 12 }}>
+                    <span style={{ fontSize: 13, color: T.textDim }}>Your generated build will appear here</span>
+                  </div>
+                ) : null}
+              </div>
+            )}
 
-              {/* Component slots */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                {COMPONENT_ORDER.map(slot => {
-                  const meta      = COMPONENT_META[slot];
-                  const picked    = (selected as any)[slot] as AnyPart | undefined;
-                  const issues    = compatIssues.filter(i => i.slot === slot);
-                  const hasError  = issues.some(i => i.severity === "error");
-                  const hasWarn   = issues.some(i => i.severity === "warn");
-                  const borderCol = hasError ? "rgba(239,68,68,0.4)" : hasWarn ? "rgba(251,191,36,0.3)" : T.border;
+            {/* ── CUSTOM BUILD ── */}
+            {mode === "custom" && (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 290px", gap: 24, alignItems: "start" }}>
 
-                  return (
-                    <div key={slot}
-                      style={{ padding: "16px 20px", borderRadius: 12,
-                        background: T.surfaceHi, border: `1px solid ${borderCol}`, transition: "border-color 0.12s",
-                        display: "flex", alignItems: "center", gap: 16 }}>
-                      <span style={{ fontSize: 22, flexShrink: 0, width: 32, textAlign: "center" }}>{meta.icon}</span>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.05em",
-                          textTransform: "uppercase", color: T.textDim, marginBottom: 3 }}>{meta.label}</div>
-                        {picked
-                          ? <div style={{ fontSize: 14, fontWeight: 600, color: T.text, marginBottom: 2,
-                              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{picked.name}</div>
-                          : <div style={{ fontSize: 13, color: T.textDim }}>Click to select</div>}
-                        {picked && (
-                          <div style={{ fontSize: 12, color: T.textMid,
-                            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{(picked as any).specs}</div>
-                        )}
-                        {picked && <BuyButtons name={picked.name} />}
-                        {issues.map((iss, i) => (
-                          <div key={i} style={{ fontSize: 11, marginTop: 4,
-                            color: iss.severity === "error" ? "#fca5a5" : "#fcd34d" }}>
-                            {iss.severity === "error" ? "✗" : "△"} {iss.msg}
-                          </div>
-                        ))}
-                      </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-                        {picked && (
-                          <span style={{ fontSize: 15, fontWeight: 700, color: T.text }}>
-                            ${(picked as any).price}
-                          </span>
-                        )}
-                        <button onClick={() => setOpenSlot(slot)}
-                          style={{ fontSize: 12, fontWeight: 600, padding: "5px 12px", borderRadius: 8, cursor: "pointer",
-                            background: picked ? "rgba(99,102,241,0.12)" : T.bg,
-                            color: picked ? T.accentHi : T.textDim,
-                            border: `1px solid ${picked ? "rgba(99,102,241,0.25)" : T.border}`,
-                            transition: "all 0.12s" }}>
-                          {picked ? "Change" : "Pick"}
-                        </button>
-                        {picked && (
-                          <button
-                            onClick={() => setSelected(prev => { const next = { ...prev }; delete (next as any)[slot]; return next; })}
-                            style={{ width: 28, height: 28, borderRadius: 8, cursor: "pointer", display: "flex",
-                              alignItems: "center", justifyContent: "center", fontSize: 14,
-                              background: "rgba(239,68,68,0.08)", color: "#f87171",
-                              border: "1px solid rgba(239,68,68,0.2)", transition: "all 0.12s" }}
-                            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(239,68,68,0.18)"; }}
-                            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "rgba(239,68,68,0.08)"; }}>
-                            ✕
+                {/* PCPartPicker-style table */}
+                <div style={{ border: `1px solid ${T.border}`, borderRadius: 12, overflow: "hidden" }}>
+                  {/* Table header */}
+                  <div style={{ display: "grid", gridTemplateColumns: "28px 160px 1fr 100px 76px",
+                    padding: "9px 16px", background: T.surfaceHi, borderBottom: `1px solid ${T.border}` }}>
+                    {["", "Component", "Selection", "Price", ""].map((h, i) => (
+                      <span key={i} style={{ fontSize: 10, fontWeight: 700, color: T.textDim,
+                        textTransform: "uppercase", letterSpacing: "0.07em",
+                        textAlign: i === 3 ? "right" : "left" }}>{h}</span>
+                    ))}
+                  </div>
+
+                  {/* Component rows */}
+                  {COMPONENT_ORDER.map((slot, idx) => {
+                    const meta      = COMPONENT_META[slot];
+                    const picked    = (selected as any)[slot] as AnyPart | undefined;
+                    const issues    = compatIssues.filter(i => i.slot === slot);
+                    const hasError  = issues.some(i => i.severity === "error");
+                    const hasWarn   = issues.some(i => i.severity === "warn");
+                    const livePrice = livePrices[slot];
+                    const displayPrice = livePrice ?? (picked as any)?.price;
+
+                    const indicator = !picked
+                      ? { icon: "—", color: T.textDim }
+                      : hasError
+                        ? { icon: "✗", color: "#f87171" }
+                        : hasWarn
+                          ? { icon: "△", color: "#fcd34d" }
+                          : { icon: "✓", color: "#34d399" };
+
+                    return (
+                      <div key={slot} style={{
+                        display: "grid", gridTemplateColumns: "28px 160px 1fr 100px 76px",
+                        padding: "14px 0 14px 0", gap: 0,
+                        borderBottom: idx < COMPONENT_ORDER.length - 1 ? `1px solid ${T.border}` : "none",
+                        background: idx % 2 === 0 ? "transparent" : "rgba(255,255,255,0.012)",
+                      }}>
+                        {/* Compatibility indicator */}
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "center",
+                          fontSize: 13, fontWeight: 700, color: indicator.color, paddingLeft: 6 }}>
+                          {indicator.icon}
+                        </div>
+
+                        {/* Component type */}
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, paddingLeft: 4, paddingTop: 1 }}>
+                          <span style={{ fontSize: 15, lineHeight: 1 }}>{meta.icon}</span>
+                          <span style={{ fontSize: 12, fontWeight: 600, color: T.textMid }}>{meta.label}</span>
+                        </div>
+
+                        {/* Selection */}
+                        <div style={{ paddingRight: 12 }}>
+                          {picked ? (
+                            <>
+                              <div style={{ fontSize: 13, fontWeight: 600, color: T.text, marginBottom: 2,
+                                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{picked.name}</div>
+                              <div style={{ fontSize: 11, color: T.textDim, marginBottom: 4,
+                                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{(picked as any).specs}</div>
+                              {issues.map((iss, i) => (
+                                <div key={i} style={{ fontSize: 11, marginBottom: 3,
+                                  color: iss.severity === "error" ? "#fca5a5" : "#fcd34d" }}>
+                                  {iss.severity === "error" ? "✗" : "△"} {iss.msg}
+                                </div>
+                              ))}
+                              <BuyButtons name={picked.name} />
+                            </>
+                          ) : (
+                            <button onClick={() => setOpenSlot(slot)}
+                              style={{ background: "none", border: "none", cursor: "pointer", padding: 0,
+                                fontSize: 13, color: T.accent, fontWeight: 500, letterSpacing: "-0.01em" }}>
+                              + Choose a {meta.label}
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Price */}
+                        <div style={{ textAlign: "right", paddingRight: 12, paddingTop: 2 }}>
+                          {picked && displayPrice != null && (
+                            <>
+                              <div style={{ fontSize: 14, fontWeight: 700, color: T.text }}>${displayPrice.toFixed(2)}</div>
+                              {livePrice && livePrice !== (picked as any).price && (
+                                <div style={{ fontSize: 10, color: T.textDim, textDecoration: "line-through" }}>
+                                  ${(picked as any).price}
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </div>
+
+                        {/* Actions */}
+                        <div style={{ display: "flex", alignItems: "center", gap: 5, paddingRight: 14, justifyContent: "flex-end" }}>
+                          <button onClick={() => setOpenSlot(slot)}
+                            title={picked ? "Change" : "Add"}
+                            style={{ width: 28, height: 28, borderRadius: 6, border: `1px solid ${T.border}`,
+                              background: "transparent", color: T.textMid, cursor: "pointer",
+                              fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center",
+                              transition: "all 0.1s" }}
+                            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = T.accent; (e.currentTarget as HTMLElement).style.color = T.accentHi; }}
+                            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = T.border; (e.currentTarget as HTMLElement).style.color = T.textMid; }}>
+                            {picked ? "✎" : "+"}
                           </button>
+                          {picked && (
+                            <button
+                              onClick={() => setSelected(prev => { const n = { ...prev }; delete (n as any)[slot]; return n; })}
+                              title="Remove"
+                              style={{ width: 28, height: 28, borderRadius: 6, cursor: "pointer",
+                                background: "transparent", color: T.textDim,
+                                border: `1px solid ${T.border}`, fontSize: 14,
+                                display: "flex", alignItems: "center", justifyContent: "center",
+                                transition: "all 0.1s" }}
+                              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "#ef4444"; (e.currentTarget as HTMLElement).style.color = "#f87171"; }}
+                              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = T.border; (e.currentTarget as HTMLElement).style.color = T.textDim; }}>
+                              ✕
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {/* Total row */}
+                  <div style={{ display: "grid", gridTemplateColumns: "28px 160px 1fr 100px 76px",
+                    padding: "14px 0", background: T.surfaceHi,
+                    borderTop: `2px solid ${T.accent}` }}>
+                    <div />
+                    <div style={{ paddingLeft: 4 }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: T.accent,
+                        textTransform: "uppercase", letterSpacing: "0.05em" }}>Total</span>
+                    </div>
+                    <div style={{ paddingRight: 12, display: "flex", alignItems: "center" }}>
+                      {taxRate > 0 && stateCode && (
+                        <span style={{ fontSize: 11, color: T.textDim }}>
+                          Includes {(taxRate * 100).toFixed(2)}% {stateCode} tax
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ textAlign: "right", paddingRight: 12 }}>
+                      <span style={{ fontSize: 18, fontWeight: 800, color: T.accentHi, letterSpacing: "-0.02em" }}>
+                        ${totalWithTax.toFixed(2)}
+                      </span>
+                    </div>
+                    <div />
+                  </div>
+                </div>
+
+                {/* Right sidebar */}
+                <div style={{ position: "sticky", top: 62, display: "flex", flexDirection: "column", gap: 12 }}>
+
+                  {/* Budget card */}
+                  <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: 18 }}>
+                    <FieldLabel>Budget</FieldLabel>
+                    <BudgetPresets value={customBudget} onChange={v => { setCustomBudget(v); setCustomBudgetStr(String(v)); }} />
+                    <div style={{ position: "relative", marginBottom: 16 }}>
+                      <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)",
+                        fontSize: 13, fontWeight: 600, color: T.textMid }}>$</span>
+                      <input type="text" inputMode="numeric" value={customBudgetStr}
+                        onChange={e => {
+                          const raw = e.target.value.replace(/[^0-9]/g, "");
+                          setCustomBudgetStr(raw);
+                          if (raw !== "") setCustomBudget(Number(raw));
+                        }}
+                        onBlur={() => {
+                          if (customBudgetStr === "") { setCustomBudgetStr("0"); setCustomBudget(0); }
+                        }}
+                        style={{ width: "100%", padding: "10px 12px 10px 26px", background: T.surfaceHi,
+                          border: `1px solid ${T.border}`, borderRadius: 8, color: T.text,
+                          fontSize: 13, outline: "none", boxSizing: "border-box" }}
+                        onFocus={e => (e.target.style.borderColor = T.accent)}
+                        onBlur={e => (e.target.style.borderColor = T.border)} />
+                    </div>
+
+                    {/* Progress bar */}
+                    <div style={{ height: 3, borderRadius: 99, background: T.border, overflow: "hidden", marginBottom: 10 }}>
+                      <div style={{ height: "100%", borderRadius: 99, transition: "width 0.3s",
+                        width: `${Math.min(100, (totalWithTax / (customBudget || 1)) * 100)}%`,
+                        background: customRemaining < 0 ? "#ef4444" : T.grad }} />
+                    </div>
+
+                    <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}>
+                        <span style={{ fontSize: 12, color: T.textDim }}>Subtotal</span>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: T.text }}>${customTotal.toFixed(2)}</span>
+                      </div>
+                      {taxRate > 0 && (
+                        <div style={{ display: "flex", justifyContent: "space-between" }}>
+                          <span style={{ fontSize: 12, color: T.textDim }}>
+                            Tax {stateCode && `(${stateCode} ${(taxRate*100).toFixed(2)}%)`}
+                          </span>
+                          <span style={{ fontSize: 12, fontWeight: 600, color: T.text }}>${taxAmount.toFixed(2)}</span>
+                        </div>
+                      )}
+                      <div style={{ height: 1, background: T.border }} />
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: T.text }}>Total</span>
+                        <span style={{ fontSize: 20, fontWeight: 800, color: T.text, letterSpacing: "-0.02em" }}>
+                          ${totalWithTax.toFixed(2)}
+                        </span>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}>
+                        <span style={{ fontSize: 11, color: T.textDim }}>Remaining</span>
+                        <span style={{ fontSize: 11, fontWeight: 700,
+                          color: customRemaining < 0 ? "#f87171" : customRemaining < customBudget * 0.1 ? "#f59e0b" : "#34d399" }}>
+                          {customRemaining < 0 ? `-$${Math.abs(customRemaining).toFixed(2)}` : `$${customRemaining.toFixed(2)}`}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Wattage card */}
+                  {(wattCpu > 0 || wattGpu > 0 || wattPlatform > 0) && (
+                    <div style={{ background: T.surface, border: `1px solid ${wattOverload ? "rgba(239,68,68,0.4)" : T.border}`, borderRadius: 12, padding: 16 }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: T.textMid, textTransform: "uppercase", letterSpacing: "0.05em" }}>⚡ Power Draw</span>
+                        <span style={{ fontSize: 16, fontWeight: 800, color: wattOverload ? "#f87171" : T.accentHi, letterSpacing: "-0.02em" }}>{wattTotal}W</span>
+                      </div>
+                      {/* Bar */}
+                      <div style={{ height: 6, borderRadius: 99, background: T.border, overflow: "hidden", marginBottom: 10 }}>
+                        <div style={{ height: "100%", borderRadius: 99, transition: "width 0.3s",
+                          width: `${wattPct || (wattTotal > 0 ? 30 : 0)}%`,
+                          background: wattOverload ? "#ef4444" : wattPct > 70 ? "#f59e0b" : T.grad }} />
+                      </div>
+                      {/* Breakdown rows */}
+                      <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                        {wattCpu > 0 && (
+                          <div style={{ display: "flex", justifyContent: "space-between" }}>
+                            <span style={{ fontSize: 11, color: T.textDim }}>🧠 CPU (TDP)</span>
+                            <span style={{ fontSize: 11, fontWeight: 600, color: T.textMid }}>{wattCpu}W</span>
+                          </div>
+                        )}
+                        {wattGpu > 0 && (
+                          <div style={{ display: "flex", justifyContent: "space-between" }}>
+                            <span style={{ fontSize: 11, color: T.textDim }}>🎮 GPU</span>
+                            <span style={{ fontSize: 11, fontWeight: 600, color: T.textMid }}>{wattGpu}W</span>
+                          </div>
+                        )}
+                        {wattPlatform > 0 && (
+                          <div style={{ display: "flex", justifyContent: "space-between" }}>
+                            <span style={{ fontSize: 11, color: T.textDim }}>🔌 Platform (est.)</span>
+                            <span style={{ fontSize: 11, fontWeight: 600, color: T.textMid }}>{wattPlatform}W</span>
+                          </div>
+                        )}
+                        {wattPsu > 0 && (
+                          <>
+                            <div style={{ height: 1, background: T.border, margin: "2px 0" }} />
+                            <div style={{ display: "flex", justifyContent: "space-between" }}>
+                              <span style={{ fontSize: 11, color: T.textDim }}>⚡ PSU capacity</span>
+                              <span style={{ fontSize: 11, fontWeight: 600, color: T.textMid }}>{wattPsu}W</span>
+                            </div>
+                            <div style={{ display: "flex", justifyContent: "space-between" }}>
+                              <span style={{ fontSize: 11, color: T.textDim }}>Headroom</span>
+                              <span style={{ fontSize: 11, fontWeight: 700, color: wattOverload ? "#f87171" : "#34d399" }}>
+                                {wattOverload ? "⚠ " : ""}{wattPsu - wattTotal}W {wattOverload ? "short" : "free"}
+                              </span>
+                            </div>
+                          </>
+                        )}
+                        {!wattPsu && (
+                          <div style={{ fontSize: 10, color: T.textDim, marginTop: 2 }}>Add a PSU to check headroom</div>
                         )}
                       </div>
                     </div>
-                  );
-                })}
-              </div>
+                  )}
 
-              {Object.keys(selected).length > 0 && (
-                <button onClick={() => setSelected({})}
-                  style={{ marginTop: 16, background: "none", border: "none", cursor: "pointer",
-                    fontSize: 12, color: T.textDim, padding: 0 }}>
-                  Clear all selections
-                </button>
-              )}
-            </div>
-          )}
-        </div>)}
+                  {/* Actions card */}
+                  <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: 14,
+                    display: "flex", flexDirection: "column", gap: 8 }}>
+                    {fetchingPrices && (
+                      <div style={{ fontSize: 11, color: T.accent, textAlign: "center", fontWeight: 600 }}>
+                        Fetching live prices…
+                      </div>
+                    )}
+                    {Object.keys(selected).length > 0 && (
+                      <button onClick={() => setSelected({})}
+                        style={{ width: "100%", padding: "9px", borderRadius: 8,
+                          border: `1px solid ${T.border}`, background: "transparent",
+                          color: T.textDim, fontSize: 12, fontWeight: 500, cursor: "pointer",
+                          transition: "all 0.12s" }}
+                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "#f87171"; (e.currentTarget as HTMLElement).style.borderColor = "rgba(239,68,68,0.3)"; }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = T.textDim; (e.currentTarget as HTMLElement).style.borderColor = T.border; }}>
+                        Clear all parts
+                      </button>
+                    )}
+                    {stateCode ? (
+                      <p style={{ margin: 0, fontSize: 11, color: T.textDim, textAlign: "center" }}>
+                        Tax: {US_STATES.find(([c]) => c === stateCode)?.[1]} · {(taxRate * 100).toFixed(2)}%
+                      </p>
+                    ) : (
+                      <select value={stateCode} onChange={e => setStateCode(e.target.value)}
+                        style={{ width: "100%", padding: "8px 12px", background: T.surfaceHi,
+                          border: `1px solid ${T.border}`, borderRadius: 8, color: T.textDim,
+                          fontSize: 12, outline: "none", cursor: "pointer", appearance: "none" }}>
+                        <option value="">Select state for tax…</option>
+                        {US_STATES.map(([code, name]) => (
+                          <option key={code} value={code}>{name} ({(STATE_TAX[code] * 100).toFixed(2)}%)</option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+          </div>
+        )}
+
       </main>
     </>
   );
