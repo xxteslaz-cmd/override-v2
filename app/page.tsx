@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, type ReactElement } from "react";
 import type { SearchResult } from "./api/search/route";
 
 // ─── Part data ────────────────────────────────────────────────────────────────
@@ -341,7 +341,7 @@ function StatBar({ value, max, lowerBetter }: { value: number; max: number; lowe
 
 function SlotIcon({ slot, size = 48 }: { slot: ComponentKey; size?: number }) {
   const s = size;
-  const icons: Record<ComponentKey, JSX.Element> = {
+  const icons: Record<ComponentKey, ReactElement> = {
     cpu: (
       <svg width={s} height={s} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
         <rect x="13" y="13" width="22" height="22" rx="3" fill="#0ea5e9" opacity="0.15" stroke="#0ea5e9" strokeWidth="1.5"/>
@@ -1251,14 +1251,14 @@ export default function Home() {
                             setCustomBudgetStr(raw);
                             if (raw !== "") setCustomBudget(Number(raw));
                           }}
-                          onBlur={() => {
+                          onBlur={e => {
                             if (customBudgetStr === "") { setCustomBudgetStr("0"); setCustomBudget(0); }
+                            e.target.style.borderColor = T.border;
                           }}
                           style={{ width: "100%", padding: "10px 12px 10px 26px", background: T.surfaceHi,
                             border: `1px solid ${T.border}`, borderRadius: 8, color: T.text,
                             fontSize: 13, outline: "none", boxSizing: "border-box" }}
-                          onFocus={e => (e.target.style.borderColor = T.accent)}
-                          onBlur={e => (e.target.style.borderColor = T.border)} />
+                          onFocus={e => (e.target.style.borderColor = T.accent)} />
                       </div>
                     )}
 
