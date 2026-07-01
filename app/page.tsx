@@ -229,8 +229,7 @@ function PartModal({ slot, selected, onSelect, onClose }: {
   const showSearch  = query.trim().length > 0;
   const displayList = showSearch ? results : staticList;
   const selectedId  = (selected as any)[slot]?.id;
-  const isGpu       = slot === "gpu";
-  const liveSource  = results[0]?.source;
+  const isGpu = slot === "gpu";
 
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex",
@@ -277,15 +276,6 @@ function PartModal({ slot, selected, onSelect, onClose }: {
             )}
           </div>
 
-          {showSearch && results.length > 0 && (
-            <div style={{ marginBottom: 12, padding: "6px 10px", borderRadius: 6,
-              background: liveSource === "newegg" ? "rgba(251,146,60,0.08)" : "rgba(99,102,241,0.08)",
-              border: `1px solid ${liveSource === "newegg" ? "rgba(251,146,60,0.2)" : "rgba(99,102,241,0.2)"}` }}>
-              <span style={{ fontSize: 11, fontWeight: 600, color: liveSource === "newegg" ? "#fb923c" : T.accentHi }}>
-                {liveSource === "newegg" ? "📦 Live prices from Newegg" : "🤖 AI-estimated prices"}
-              </span>
-            </div>
-          )}
 
           <div style={{ height: 1, background: T.border, margin: "0 -24px" }} />
         </div>
@@ -325,10 +315,6 @@ function PartModal({ slot, selected, onSelect, onClose }: {
                       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
                         <span style={{ fontSize: 14, fontWeight: 600, color: T.text, letterSpacing: "-0.01em" }}>{part.name}</span>
                         {!isSearchResult && <TierBadge tier={(part as AnyPart).tier} />}
-                        {isSearchResult && (part as SearchResult).source === "newegg" && (
-                          <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.04em", padding: "2px 8px",
-                            borderRadius: 99, background: "rgba(251,146,60,0.1)", color: "#fb923c", border: "1px solid rgba(251,146,60,0.25)" }}>LIVE</span>
-                        )}
                       </div>
                       <p style={{ fontSize: 12, color: T.textMid, margin: 0 }}>{(part as any).specs}</p>
                       {note && (
@@ -639,12 +625,10 @@ export default function Home() {
                   const borderCol = hasError ? "rgba(239,68,68,0.4)" : hasWarn ? "rgba(251,191,36,0.3)" : T.border;
 
                   return (
-                    <button key={slot} onClick={() => setOpenSlot(slot)}
-                      style={{ textAlign: "left", padding: "16px 20px", borderRadius: 12, cursor: "pointer",
-                        background: T.surfaceHi, border: `1px solid ${borderCol}`, transition: "all 0.12s",
-                        display: "flex", alignItems: "center", gap: 16 }}
-                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = T.bg; (e.currentTarget as HTMLElement).style.borderColor = hasError ? "rgba(239,68,68,0.6)" : hasWarn ? "rgba(251,191,36,0.5)" : T.borderHi; }}
-                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = T.surfaceHi; (e.currentTarget as HTMLElement).style.borderColor = borderCol; }}>
+                    <div key={slot}
+                      style={{ padding: "16px 20px", borderRadius: 12,
+                        background: T.surfaceHi, border: `1px solid ${borderCol}`, transition: "border-color 0.12s",
+                        display: "flex", alignItems: "center", gap: 16 }}>
                       <span style={{ fontSize: 22, flexShrink: 0, width: 32, textAlign: "center" }}>{meta.icon}</span>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.05em",
@@ -664,20 +648,34 @@ export default function Home() {
                           </div>
                         ))}
                       </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
                         {picked && (
                           <span style={{ fontSize: 15, fontWeight: 700, color: T.text }}>
                             ${(picked as any).price}
                           </span>
                         )}
-                        <span style={{ fontSize: 12, fontWeight: 600, padding: "5px 12px", borderRadius: 8,
-                          background: picked ? "rgba(99,102,241,0.12)" : T.bg,
-                          color: picked ? T.accentHi : T.textDim,
-                          border: `1px solid ${picked ? "rgba(99,102,241,0.25)" : T.border}` }}>
+                        <button onClick={() => setOpenSlot(slot)}
+                          style={{ fontSize: 12, fontWeight: 600, padding: "5px 12px", borderRadius: 8, cursor: "pointer",
+                            background: picked ? "rgba(99,102,241,0.12)" : T.bg,
+                            color: picked ? T.accentHi : T.textDim,
+                            border: `1px solid ${picked ? "rgba(99,102,241,0.25)" : T.border}`,
+                            transition: "all 0.12s" }}>
                           {picked ? "Change" : "Pick"}
-                        </span>
+                        </button>
+                        {picked && (
+                          <button
+                            onClick={() => setSelected(prev => { const next = { ...prev }; delete (next as any)[slot]; return next; })}
+                            style={{ width: 28, height: 28, borderRadius: 8, cursor: "pointer", display: "flex",
+                              alignItems: "center", justifyContent: "center", fontSize: 14,
+                              background: "rgba(239,68,68,0.08)", color: "#f87171",
+                              border: "1px solid rgba(239,68,68,0.2)", transition: "all 0.12s" }}
+                            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(239,68,68,0.18)"; }}
+                            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "rgba(239,68,68,0.08)"; }}>
+                            ✕
+                          </button>
+                        )}
                       </div>
-                    </button>
+                    </div>
                   );
                 })}
               </div>
