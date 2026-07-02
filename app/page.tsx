@@ -218,7 +218,52 @@ interface CachedPrices {
   lastChecked: string | null; // ISO string from KV
 }
 const _kvCache: Record<string, CachedPrices | null> = {};
+const _kvPending: Record<string, Promise<CachedPrices | null>> = {};
 const _cheaperCache: Record<string, "newegg" | "amazon" | null> = {};
+
+function getLowestKvPrice(cached: CachedPrices | null): number | null {
+  if (!cached) return null;
+  const prices = [cached.newegg?.price, cached.amazon?.price].filter((p): p is number => p != null);
+  return prices.length ? Math.min(...prices) : null;
+}
+
+async function fetchKvPrices(id: string): Promise<CachedPrices | null> {
+  if (id in _kvCache) return _kvCache[id];
+  if (id in _kvPending) return _kvPending[id];
+  const p = fetch(`/api/prices?id=${encodeURIComponent(id)}`)
+    .then(r => r.ok ? r.json() : null)
+    .then((data: { newegg: { price: number; link: string } | null; amazon: { price: number; link: string } | null; lastChecked: string | null } | null) => {
+      const cached: CachedPrices | null = data
+        ? { newegg: data.newegg ?? null, amazon: data.amazon ?? null, lastChecked: data.lastChecked ?? null }
+        : null;
+      _kvCache[id] = cached;
+      delete _kvPending[id];
+      return cached;
+    })
+    .catch(() => { _kvCache[id] = null; delete _kvPending[id]; return null; });
+  _kvPending[id] = p;
+  return p;
+}
+
+// Live price display component — shows lowest of newegg/amazon from KV, falls back to static
+function LivePrice({ id, fallback, style }: { id?: string; fallback?: number; style?: React.CSSProperties }) {
+  const [price, setPrice] = useState<number | null>(() =>
+    id && id in _kvCache ? (getLowestKvPrice(_kvCache[id]) ?? fallback ?? null) : (fallback ?? null)
+  );
+
+  useEffect(() => {
+    if (!id) return;
+    let cancelled = false;
+    fetchKvPrices(id).then(cached => {
+      if (cancelled) return;
+      setPrice(getLowestKvPrice(cached) ?? fallback ?? null);
+    });
+    return () => { cancelled = true; };
+  }, [id, fallback]);
+
+  if (price == null) return <span style={style}>—</span>;
+  return <span style={style}>${price.toFixed(2)}</span>;
+}
 
 function hoursAgo(iso: string | null): string | null {
   if (!iso) return null;
@@ -235,10 +280,8 @@ function BuyButtons({ id, name, staticPrice }: { id?: string; name: string; stat
   const fallbackNewegg = `https://www.newegg.com/p/pl?d=${encodeURIComponent(name)}`;
   const fallbackAmazon = `https://www.amazon.com/s?k=${encodeURIComponent(name)}`;
 
-  const cacheKey = id ?? name;
-
-  const [kvPrices, setKvPrices] = useState<CachedPrices | null>(
-    cacheKey in _kvCache ? _kvCache[cacheKey] : null
+  const [kvPrices, setKvPrices] = useState<CachedPrices | null>(() =>
+    id && id in _kvCache ? _kvCache[id] : null
   );
   const [cheaper, setCheaper] = useState<"newegg" | "amazon" | null>(
     name in _cheaperCache ? _cheaperCache[name] : null
@@ -246,33 +289,18 @@ function BuyButtons({ id, name, staticPrice }: { id?: string; name: string; stat
 
   useEffect(() => {
     let cancelled = false;
-
-    // 1. Try KV prices first (via /api/prices?id=)
-    if (id && !(cacheKey in _kvCache)) {
-      fetch(`/api/prices?id=${encodeURIComponent(id)}`)
-        .then(r => r.ok ? r.json() : null)
-        .then((data: { newegg: { price: number; link: string } | null; amazon: { price: number; link: string } | null; lastChecked: string | null } | null) => {
-          if (cancelled || !data) return;
-          const cached: CachedPrices = {
-            newegg: data.newegg ? { price: data.newegg.price, link: data.newegg.link } : null,
-            amazon: data.amazon ? { price: data.amazon.price, link: data.amazon.link } : null,
-            lastChecked: data.lastChecked ?? null,
-          };
-          _kvCache[cacheKey] = cached;
-          setKvPrices(cached);
-          // Determine cheaper from KV data
-          if (cached.newegg && cached.amazon) {
-            const result = cached.newegg.price <= cached.amazon.price ? "newegg" : "amazon";
-            _cheaperCache[name] = result;
-            setCheaper(result);
-          }
-        })
-        .catch(() => { _kvCache[cacheKey] = null; });
-      return () => { cancelled = true; };
-    }
-
-    // 2. No catalog id — fall back to live comparison scrape
-    if (!id) {
+    if (id) {
+      fetchKvPrices(id).then(cached => {
+        if (cancelled) return;
+        setKvPrices(cached);
+        if (cached?.newegg && cached?.amazon) {
+          const result = cached.newegg.price <= cached.amazon.price ? "newegg" : "amazon";
+          _cheaperCache[name] = result;
+          setCheaper(result);
+        }
+      });
+    } else {
+      // No catalog id (AI build) — fall back to live comparison scrape
       if (name in _cheaperCache) { setCheaper(_cheaperCache[name]); return; }
       fetch(`/api/compare?q=${encodeURIComponent(name)}`)
         .then(r => r.json())
@@ -283,18 +311,16 @@ function BuyButtons({ id, name, staticPrice }: { id?: string; name: string; stat
           setCheaper(result);
         })
         .catch(() => { _cheaperCache[name] = null; });
-      return () => { cancelled = true; };
     }
-  }, [id, name, cacheKey]);
+    return () => { cancelled = true; };
+  }, [id, name]);
 
-  // Resolve display prices and links
   const neweggPrice = kvPrices?.newegg?.price ?? staticPrice;
   const amazonPrice = kvPrices?.amazon?.price ?? staticPrice;
   const neweggLink  = kvPrices?.newegg?.link  ?? fallbackNewegg;
   const amazonLink  = kvPrices?.amazon?.link  ?? fallbackAmazon;
   const lastChecked = kvPrices?.lastChecked ?? null;
 
-  // Resolve cheaper from KV prices if not already set
   const resolvedCheaper = cheaper ?? (
     kvPrices?.newegg && kvPrices?.amazon
       ? (kvPrices.newegg.price <= kvPrices.amazon.price ? "newegg" : "amazon")
@@ -319,8 +345,8 @@ function BuyButtons({ id, name, staticPrice }: { id?: string; name: string; stat
       : (isWinner ? "#6ee7b7" : "rgba(255,255,255,0.35)");
   }
 
-  const neweggLabel = neweggPrice != null ? ` ~$${neweggPrice.toFixed(2)}` : "";
-  const amazonLabel = amazonPrice != null ? ` ~$${amazonPrice.toFixed(2)}` : "";
+  const neweggLabel = neweggPrice != null ? ` $${neweggPrice.toFixed(2)}` : "";
+  const amazonLabel = amazonPrice != null ? ` $${amazonPrice.toFixed(2)}` : "";
   const checkedLabel = hoursAgo(lastChecked);
 
   return (
@@ -870,9 +896,11 @@ function PartModal({ slot, selected, onSelect, onClose }: {
                     </div>
                     {/* Price + wattage column */}
                     <div style={{ textAlign: "right", flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
-                      <div style={{ fontSize: 22, fontWeight: 800, color: T.text, letterSpacing: "-0.03em", lineHeight: 1 }}>
-                        ${(part as any).price}
-                      </div>
+                      <LivePrice
+                        id={isSearchResult ? undefined : (part as AnyPart).id}
+                        fallback={(part as any).price}
+                        style={{ fontSize: 22, fontWeight: 800, color: T.text, letterSpacing: "-0.03em", lineHeight: 1 }}
+                      />
                       {!isSearchResult && (() => { const w = partWatts(part as AnyPart); return w != null ? (
                         <div style={{ fontSize: 10, fontWeight: 600, color: slot === "psu" ? "#34d399" : "#f59e0b",
                           background: slot === "psu" ? "rgba(52,211,153,0.1)" : "rgba(245,158,11,0.1)",
@@ -943,7 +971,6 @@ export default function Home() {
   const [tab,          setTab]          = useState<"build" | "prebuilt">("build");
   const [stateCode,    setStateCode]    = useState("");
   const [livePrices,   setLivePrices]   = useState<Record<string, number>>({});
-  const [fetchingPrices, setFetchingPrices] = useState(false);
 
   useEffect(() => {
     fetch("https://ipapi.co/json/")
@@ -955,24 +982,15 @@ export default function Home() {
   useEffect(() => {
     const slots = Object.keys(selected) as ComponentKey[];
     if (!slots.length) return;
-    setFetchingPrices(true);
     const updates: Record<string, number> = {};
     Promise.all(slots.map(async slot => {
       const part = (selected as any)[slot] as AnyPart;
-      if (!part) return;
-      try {
-        const r = await fetch(`/api/search?q=${encodeURIComponent(part.name)}&category=${slot}`);
-        const results: { name: string; price: number }[] = await r.json();
-        if (results.length > 0) {
-          const top = results[0];
-          const score = top.name.toLowerCase().split(/\s+/).filter((w: string) => part.name.toLowerCase().includes(w) && w.length > 2).length;
-          const threshold = Math.floor(part.name.split(/\s+/).filter((w: string) => w.length > 2).length * 0.6);
-          if (score >= threshold && top.price > 0) updates[slot] = top.price;
-        }
-      } catch {}
+      if (!part?.id) return;
+      const cached = await fetchKvPrices(part.id);
+      const lowest = getLowestKvPrice(cached);
+      if (lowest != null) updates[slot] = lowest;
     })).then(() => {
       setLivePrices(prev => ({ ...prev, ...updates }));
-      setFetchingPrices(false);
     });
   }, [selected]);
 
@@ -1212,8 +1230,8 @@ export default function Home() {
                           <div style={{ fontSize: 11, color: T.textDim, lineHeight: 1.5, marginBottom: 4 }}>{val.reason}</div>
                           <BuyButtons name={val.name} staticPrice={val.price} />
                         </div>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: T.text, textAlign: "right", paddingTop: 2 }}>
-                          ${val.price}
+                        <div style={{ textAlign: "right", paddingTop: 2 }}>
+                          <LivePrice fallback={val.price} style={{ fontSize: 13, fontWeight: 700, color: T.text }} />
                         </div>
                       </div>
                     ))}
@@ -1274,8 +1292,7 @@ export default function Home() {
                     const issues    = compatIssues.filter(i => i.slot === slot);
                     const hasError  = issues.some(i => i.severity === "error");
                     const hasWarn   = issues.some(i => i.severity === "warn");
-                    const livePrice = livePrices[slot];
-                    const displayPrice = livePrice ?? (picked as any)?.price;
+
 
                     const indicator = !picked
                       ? { icon: "—", color: T.textDim }
@@ -1331,15 +1348,12 @@ export default function Home() {
 
                         {/* Price */}
                         <div style={{ textAlign: "right", paddingRight: 12, paddingTop: 2 }}>
-                          {picked && displayPrice != null && (
-                            <>
-                              <div style={{ fontSize: 14, fontWeight: 700, color: T.text }}>${displayPrice.toFixed(2)}</div>
-                              {livePrice && livePrice !== (picked as any).price && (
-                                <div style={{ fontSize: 10, color: T.textDim, textDecoration: "line-through" }}>
-                                  ${(picked as any).price}
-                                </div>
-                              )}
-                            </>
+                          {picked && (
+                            <LivePrice
+                              id={(picked as any).id}
+                              fallback={(picked as any).price}
+                              style={{ fontSize: 14, fontWeight: 700, color: T.text }}
+                            />
                           )}
                         </div>
 
@@ -1526,11 +1540,6 @@ export default function Home() {
                   {/* Actions card */}
                   <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: 14,
                     display: "flex", flexDirection: "column", gap: 8 }}>
-                    {fetchingPrices && (
-                      <div style={{ fontSize: 11, color: T.accent, textAlign: "center", fontWeight: 600 }}>
-                        Fetching live prices…
-                      </div>
-                    )}
                     {Object.keys(selected).length > 0 && (
                       <button onClick={() => setSelected({})}
                         style={{ width: "100%", padding: "9px", borderRadius: 8,
