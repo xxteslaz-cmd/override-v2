@@ -964,7 +964,7 @@ export default function Home() {
               <h1 style={{ fontSize: 48, fontWeight: 800, color: T.text, margin: "0 0 10px",
                 letterSpacing: "-0.04em", lineHeight: 1 }}>Build a PC</h1>
               <p style={{ fontSize: 17, color: T.textMid, margin: "0 0 20px", fontWeight: 500, letterSpacing: "-0.01em" }}>
-                PC building made simple
+                PC building is now simple
               </p>
               {/* Mode toggle */}
               <div style={{ display: "inline-flex", background: T.surfaceHi, border: `1px solid ${T.border}`,
