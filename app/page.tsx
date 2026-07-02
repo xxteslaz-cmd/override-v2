@@ -220,21 +220,21 @@ function BuyButtons({ name, staticPrice }: { name: string; staticPrice?: number 
       <a href={newegg} target="_blank" rel="noopener noreferrer"
         onClick={e => e.stopPropagation()}
         style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "4px 10px",
-          borderRadius: 6, fontSize: 11, fontWeight: 600, textDecoration: "none",
-          background: "rgba(251,146,60,0.1)", color: "#fb923c",
-          border: "1px solid rgba(251,146,60,0.25)", transition: "background 0.12s" }}
-        onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = "rgba(251,146,60,0.2)")}
-        onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = "rgba(251,146,60,0.1)")}>
+          borderRadius: 6, fontSize: 11, fontWeight: 500, textDecoration: "none",
+          background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.35)",
+          border: "1px solid rgba(255,255,255,0.08)", transition: "all 0.12s" }}
+        onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.background = "rgba(255,255,255,0.08)"; el.style.color = "rgba(255,255,255,0.6)"; }}
+        onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.background = "rgba(255,255,255,0.04)"; el.style.color = "rgba(255,255,255,0.35)"; }}>
         Newegg{est} ↗
       </a>
       <a href={amazon} target="_blank" rel="noopener noreferrer"
         onClick={e => e.stopPropagation()}
         style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "4px 10px",
-          borderRadius: 6, fontSize: 11, fontWeight: 600, textDecoration: "none",
-          background: "rgba(255,153,0,0.1)", color: "#ffa500",
-          border: "1px solid rgba(255,153,0,0.25)", transition: "background 0.12s" }}
-        onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = "rgba(255,153,0,0.2)")}
-        onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = "rgba(255,153,0,0.1)")}>
+          borderRadius: 6, fontSize: 11, fontWeight: 500, textDecoration: "none",
+          background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.35)",
+          border: "1px solid rgba(255,255,255,0.08)", transition: "all 0.12s" }}
+        onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.background = "rgba(255,255,255,0.08)"; el.style.color = "rgba(255,255,255,0.6)"; }}
+        onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.background = "rgba(255,255,255,0.04)"; el.style.color = "rgba(255,255,255,0.35)"; }}>
         Amazon{est} ↗
       </a>
     </div>
@@ -556,7 +556,7 @@ function PartModal({ slot, selected, onSelect, onClose }: {
     <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex",
       alignItems: "center", justifyContent: "center", padding: 16,
       background: "rgba(4,5,10,0.85)", backdropFilter: "blur(8px)" }}>
-      <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: 1100,
+      <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: 1400,
         maxHeight: "92vh", display: "flex", flexDirection: "column",
         background: T.surface, border: `1px solid ${T.borderHi}`,
         borderRadius: 20, overflow: "hidden",
@@ -721,26 +721,26 @@ function PartModal({ slot, selected, onSelect, onClose }: {
                       );
                     })()}
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      {/* Name row */}
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3, flexWrap: "wrap" }}>
+                      {/* Name + badges row */}
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2, flexWrap: "wrap" }}>
                         <span style={{ fontSize: 13, fontWeight: 600, color: T.text, letterSpacing: "-0.01em" }}>{part.name}</span>
                         {!isSearchResult && <TierBadge tier={(part as AnyPart).tier} />}
                         {isSel && <span style={{ fontSize: 10, fontWeight: 700, color: T.accent,
                           background: "rgba(14,165,233,0.15)", borderRadius: 4, padding: "1px 6px" }}>SELECTED</span>}
                       </div>
-                      {/* Specs */}
-                      <p style={{ fontSize: 11, color: T.textMid, margin: "0 0 6px" }}>{(part as any).specs}</p>
-                      {/* Stat bars */}
+                      {/* Specs — one concise line */}
+                      <p style={{ fontSize: 11, color: T.textDim, margin: "0 0 6px" }}>{(part as any).specs}</p>
+                      {/* Stat bars — subtle, secondary info */}
                       {stats && !isSearchResult && (
-                        <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 6 }}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 3, marginBottom: 6 }}>
                           {stats.map(s => {
                             const val = (part as any)[s.key];
                             if (val == null) return null;
                             return (
                               <div key={s.key} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                <span style={{ fontSize: 10, color: T.textDim, width: 80, flexShrink: 0 }}>{s.label}</span>
+                                <span style={{ fontSize: 10, color: T.textDim, width: 70, flexShrink: 0 }}>{s.label}</span>
                                 <StatBar value={val} max={s.max} lowerBetter={s.lowerBetter} />
-                                <span style={{ fontSize: 10, fontWeight: 600, color: T.textMid, width: 48, textAlign: "right", flexShrink: 0 }}>
+                                <span style={{ fontSize: 10, fontWeight: 600, color: T.textMid, width: 36, textAlign: "right", flexShrink: 0 }}>
                                   {val}{s.unit ?? ""}
                                 </span>
                               </div>
@@ -755,8 +755,11 @@ function PartModal({ slot, selected, onSelect, onClose }: {
                       )}
                       <BuyButtons name={part.name} staticPrice={(part as any).price} />
                     </div>
-                    <div style={{ textAlign: "right", flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 5 }}>
-                      <div style={{ fontSize: 15, fontWeight: 700, color: T.text }}>${(part as any).price}</div>
+                    {/* Price + wattage column */}
+                    <div style={{ textAlign: "right", flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
+                      <div style={{ fontSize: 22, fontWeight: 800, color: T.text, letterSpacing: "-0.03em", lineHeight: 1 }}>
+                        ${(part as any).price}
+                      </div>
                       {!isSearchResult && (() => { const w = partWatts(part as AnyPart); return w != null ? (
                         <div style={{ fontSize: 10, fontWeight: 600, color: slot === "psu" ? "#34d399" : "#f59e0b",
                           background: slot === "psu" ? "rgba(52,211,153,0.1)" : "rgba(245,158,11,0.1)",
@@ -929,15 +932,15 @@ export default function Home() {
             <img src="/android-chrome-192x192.png" alt="Override"
               style={{ width: 24, height: 24, borderRadius: 5, flexShrink: 0 }} />
             <span style={{ fontSize: 14, fontWeight: 600, color: T.text, letterSpacing: "-0.01em" }}>Override</span>
-            <div style={{ marginLeft: "auto", display: "flex", gap: 1,
-              background: T.surfaceHi, borderRadius: 7, padding: 3, border: `1px solid ${T.border}` }}>
+            <div style={{ marginLeft: "auto", display: "flex", gap: 0 }}>
               {(["build", "prebuilt"] as const).map(t => (
                 <button key={t} onClick={() => setTab(t)}
-                  style={{ padding: "4px 14px", borderRadius: 5, fontSize: 12, fontWeight: 500,
-                    cursor: "pointer", border: "none", transition: "all 0.15s", textTransform: "capitalize",
-                    background: tab === t ? T.borderHi : "transparent",
-                    color: tab === t ? T.text : T.textDim }}>
-                  {t}
+                  style={{ padding: "6px 20px", fontSize: 13, fontWeight: 600,
+                    cursor: "pointer", border: "none", background: "transparent",
+                    transition: "all 0.15s", letterSpacing: "-0.01em",
+                    color: tab === t ? T.text : T.textDim,
+                    borderBottom: tab === t ? `2px solid ${T.accent}` : "2px solid transparent" }}>
+                  {t === "build" ? "Build" : "Prebuilt"}
                 </button>
               ))}
             </div>
@@ -956,17 +959,15 @@ export default function Home() {
         {tab === "build" && (
           <div style={{ maxWidth: 1400, margin: "0 auto", padding: "28px 32px 80px" }}>
 
-            {/* Page header row */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
-              <div>
-                <h1 style={{ fontSize: 22, fontWeight: 700, color: T.text, margin: "0 0 4px",
-                  letterSpacing: "-0.03em" }}>Build a PC</h1>
-                <p style={{ fontSize: 13, color: T.textDim, margin: 0 }}>
-                  Pick parts manually or generate a build automatically
-                </p>
-              </div>
+            {/* Page header */}
+            <div style={{ textAlign: "center", marginBottom: 24 }}>
+              <h1 style={{ fontSize: 48, fontWeight: 800, color: T.text, margin: "0 0 10px",
+                letterSpacing: "-0.04em", lineHeight: 1 }}>Build a PC</h1>
+              <p style={{ fontSize: 17, color: T.textMid, margin: "0 0 20px", fontWeight: 500, letterSpacing: "-0.01em" }}>
+                PC building made simple
+              </p>
               {/* Mode toggle */}
-              <div style={{ display: "flex", background: T.surfaceHi, border: `1px solid ${T.border}`,
+              <div style={{ display: "inline-flex", background: T.surfaceHi, border: `1px solid ${T.border}`,
                 borderRadius: 9, padding: 3, gap: 2 }}>
                 {(["ai", "custom"] as const).map(m => (
                   <button key={m} onClick={() => setMode(m)}
