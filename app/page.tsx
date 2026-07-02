@@ -784,7 +784,7 @@ function PartModal({ slot, selected, onSelect, onClose }: {
 
 function BudgetPresets({ value, onChange, cols = 4 }: { value: number; onChange: (v: number) => void; cols?: number }) {
   return (
-    <div style={{ display: "grid", gridTemplateColumns: `repeat(${cols},1fr)`, gap: 8, marginBottom: 12 }}>
+    <div className="or-budget-grid" style={{ display: "grid", gridTemplateColumns: `repeat(${cols},1fr)`, gap: 8, marginBottom: 12 }}>
       {BUDGET_PRESETS.map(p => {
         const active = value === p.value;
         const isNoLimit = p.value === NO_BUDGET;
@@ -915,6 +915,18 @@ export default function Home() {
 
   return (
     <>
+      <style>{`
+        @media (max-width: 640px) {
+          .or-ai-layout   { grid-template-columns: 1fr !important; }
+          .or-cb-layout   { grid-template-columns: 1fr !important; }
+          .or-parts-row   { grid-template-columns: 20px 1fr auto !important; }
+          .or-parts-row .or-parts-name-col  { display: none; }
+          .or-budget-grid { grid-template-columns: 1fr 1fr !important; }
+          .or-trust-row   { gap: 14px !important; flex-direction: column; align-items: center; }
+          .or-ai-result   { grid-template-columns: 1fr !important; }
+          .or-part-price-col { display: none; }
+        }
+      `}</style>
       {openSlot && (
         <PartModal slot={openSlot} selected={selected}
           onSelect={p => setSelected(prev => ({ ...prev, [openSlot]: p }))}
@@ -966,6 +978,20 @@ export default function Home() {
               <p style={{ fontSize: 17, color: T.textMid, margin: "0 0 20px", fontWeight: 500, letterSpacing: "-0.01em" }}>
                 PC building just became easy
               </p>
+              {/* Trust signals */}
+              <div className="or-trust-row" style={{ display: "flex", justifyContent: "center", gap: 28, marginBottom: 24, flexWrap: "wrap" }}>
+                {[
+                  { icon: "🎯", text: "Set your budget & use case" },
+                  { icon: "🔧", text: "Get a full compatible build" },
+                  { icon: "✅", text: "Every choice explained" },
+                ].map(({ icon, text }) => (
+                  <div key={text} style={{ display: "flex", alignItems: "center", gap: 7,
+                    fontSize: 13, color: T.textDim, fontWeight: 500 }}>
+                    <span style={{ fontSize: 15 }}>{icon}</span>
+                    <span style={{ borderBottom: `1px solid rgba(14,165,233,0.25)`, paddingBottom: 1 }}>{text}</span>
+                  </div>
+                ))}
+              </div>
               {/* Mode toggle */}
               <div style={{ display: "inline-flex", background: T.surfaceHi, border: `1px solid ${T.border}`,
                 borderRadius: 9, padding: 3, gap: 2 }}>
@@ -984,7 +1010,7 @@ export default function Home() {
 
             {/* ── MAKE BUILD (AI) ── */}
             {mode === "ai" && (
-              <div style={{ display: "grid", gridTemplateColumns: "380px 1fr", gap: 28, alignItems: "start" }}>
+              <div className="or-ai-layout" style={{ display: "grid", gridTemplateColumns: "380px 1fr", gap: 28, alignItems: "start" }}>
                 <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 20 }}>
                   <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: 20 }}>
                     <FieldLabel>Budget</FieldLabel>
@@ -1089,12 +1115,12 @@ export default function Home() {
 
             {/* ── CUSTOM BUILD ── */}
             {mode === "custom" && (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 290px", gap: 24, alignItems: "start" }}>
+              <div className="or-cb-layout" style={{ display: "grid", gridTemplateColumns: "1fr 290px", gap: 24, alignItems: "start" }}>
 
                 {/* PCPartPicker-style table */}
                 <div style={{ border: `1px solid ${T.border}`, borderRadius: 12, overflow: "hidden" }}>
                   {/* Table header */}
-                  <div style={{ display: "grid", gridTemplateColumns: "28px 160px 1fr 100px 76px",
+                  <div className="or-parts-row" style={{ display: "grid", gridTemplateColumns: "28px 160px 1fr 100px 76px",
                     padding: "9px 16px", background: T.surfaceHi, borderBottom: `1px solid ${T.border}` }}>
                     {["", "Component", "Selection", "Price", ""].map((h, i) => (
                       <span key={i} style={{ fontSize: 10, fontWeight: 700, color: T.textDim,
@@ -1122,7 +1148,7 @@ export default function Home() {
                           : { icon: "✓", color: "#34d399" };
 
                     return (
-                      <div key={slot} style={{
+                      <div key={slot} className="or-parts-row" style={{
                         display: "grid", gridTemplateColumns: "28px 160px 1fr 100px 76px",
                         padding: "14px 0 14px 0", gap: 0,
                         borderBottom: idx < COMPONENT_ORDER.length - 1 ? `1px solid ${T.border}` : "none",
@@ -1211,7 +1237,7 @@ export default function Home() {
                   })}
 
                   {/* Total row */}
-                  <div style={{ display: "grid", gridTemplateColumns: "28px 160px 1fr 100px 76px",
+                  <div className="or-parts-row" style={{ display: "grid", gridTemplateColumns: "28px 160px 1fr 100px 76px",
                     padding: "14px 0", background: T.surfaceHi,
                     borderTop: `2px solid ${T.accent}` }}>
                     <div />
@@ -1401,6 +1427,11 @@ export default function Home() {
           </div>
         )}
 
+        <footer style={{ borderTop: `1px solid ${T.border}`, padding: "20px 32px",
+          display: "flex", gap: 20, justifyContent: "center", marginTop: "auto" }}>
+          <a href="/about" style={{ fontSize: 12, color: T.textDim, textDecoration: "none" }}>About</a>
+          <a href="/privacy" style={{ fontSize: 12, color: T.textDim, textDecoration: "none" }}>Privacy</a>
+        </footer>
       </main>
     </>
   );

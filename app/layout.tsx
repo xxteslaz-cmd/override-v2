@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Override - Pick your PC",
-  description: "PC building is now simple",
+  description: "Override generates a personalized PC build based on your budget and use case. Get compatible parts with clear reasoning for every pick — no experience needed.",
   icons: {
     icon: [
       { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
