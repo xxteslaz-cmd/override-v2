@@ -211,32 +211,145 @@ function gpuPairingNote(gpu: GPUPart, cpu?: CPUPart) {
 
 // Extract a direct Newegg product URL from a CDN image URL.
 
-function BuyButtons({ name, staticPrice }: { name: string; staticPrice?: number }) {
-  const newegg = `https://www.newegg.com/p/pl?d=${encodeURIComponent(name)}`;
-  const amazon = `https://www.amazon.com/s?k=${encodeURIComponent(name)}`;
-  const est = staticPrice != null ? ` ~$${staticPrice.toFixed(2)}` : "";
+// Module-level cache: partId → KV price data (keyed by catalog id or name)
+interface CachedPrices {
+  newegg: { price: number; link: string } | null;
+  amazon: { price: number; link: string } | null;
+  lastChecked: string | null; // ISO string from KV
+}
+const _kvCache: Record<string, CachedPrices | null> = {};
+const _cheaperCache: Record<string, "newegg" | "amazon" | null> = {};
+
+function hoursAgo(iso: string | null): string | null {
+  if (!iso) return null;
+  const diff = Date.now() - new Date(iso).getTime();
+  const h = Math.floor(diff / 3600000);
+  if (h < 1) return "just now";
+  if (h === 1) return "1 hour ago";
+  if (h < 24) return `${h} hours ago`;
+  const d = Math.floor(h / 24);
+  return d === 1 ? "1 day ago" : `${d} days ago`;
+}
+
+function BuyButtons({ id, name, staticPrice }: { id?: string; name: string; staticPrice?: number }) {
+  const fallbackNewegg = `https://www.newegg.com/p/pl?d=${encodeURIComponent(name)}`;
+  const fallbackAmazon = `https://www.amazon.com/s?k=${encodeURIComponent(name)}`;
+
+  const cacheKey = id ?? name;
+
+  const [kvPrices, setKvPrices] = useState<CachedPrices | null>(
+    cacheKey in _kvCache ? _kvCache[cacheKey] : null
+  );
+  const [cheaper, setCheaper] = useState<"newegg" | "amazon" | null>(
+    name in _cheaperCache ? _cheaperCache[name] : null
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    // 1. Try KV prices first (via /api/prices?id=)
+    if (id && !(cacheKey in _kvCache)) {
+      fetch(`/api/prices?id=${encodeURIComponent(id)}`)
+        .then(r => r.ok ? r.json() : null)
+        .then((data: { newegg: { price: number; link: string } | null; amazon: { price: number; link: string } | null; lastChecked: string | null } | null) => {
+          if (cancelled || !data) return;
+          const cached: CachedPrices = {
+            newegg: data.newegg ? { price: data.newegg.price, link: data.newegg.link } : null,
+            amazon: data.amazon ? { price: data.amazon.price, link: data.amazon.link } : null,
+            lastChecked: data.lastChecked ?? null,
+          };
+          _kvCache[cacheKey] = cached;
+          setKvPrices(cached);
+          // Determine cheaper from KV data
+          if (cached.newegg && cached.amazon) {
+            const result = cached.newegg.price <= cached.amazon.price ? "newegg" : "amazon";
+            _cheaperCache[name] = result;
+            setCheaper(result);
+          }
+        })
+        .catch(() => { _kvCache[cacheKey] = null; });
+      return () => { cancelled = true; };
+    }
+
+    // 2. No catalog id — fall back to live comparison scrape
+    if (!id) {
+      if (name in _cheaperCache) { setCheaper(_cheaperCache[name]); return; }
+      fetch(`/api/compare?q=${encodeURIComponent(name)}`)
+        .then(r => r.json())
+        .then(({ newegg: np, amazon: ap }: { newegg: number | null; amazon: number | null }) => {
+          if (cancelled) return;
+          const result = np != null && ap != null ? (np <= ap ? "newegg" : "amazon") : null;
+          _cheaperCache[name] = result;
+          setCheaper(result);
+        })
+        .catch(() => { _cheaperCache[name] = null; });
+      return () => { cancelled = true; };
+    }
+  }, [id, name, cacheKey]);
+
+  // Resolve display prices and links
+  const neweggPrice = kvPrices?.newegg?.price ?? staticPrice;
+  const amazonPrice = kvPrices?.amazon?.price ?? staticPrice;
+  const neweggLink  = kvPrices?.newegg?.link  ?? fallbackNewegg;
+  const amazonLink  = kvPrices?.amazon?.link  ?? fallbackAmazon;
+  const lastChecked = kvPrices?.lastChecked ?? null;
+
+  // Resolve cheaper from KV prices if not already set
+  const resolvedCheaper = cheaper ?? (
+    kvPrices?.newegg && kvPrices?.amazon
+      ? (kvPrices.newegg.price <= kvPrices.amazon.price ? "newegg" : "amazon")
+      : null
+  );
+
+  function btnStyle(store: "newegg" | "amazon") {
+    const isWinner = resolvedCheaper === store;
+    return {
+      background: isWinner ? "rgba(52,211,153,0.08)" : "rgba(255,255,255,0.04)",
+      color:      isWinner ? "#6ee7b7"                : "rgba(255,255,255,0.35)",
+      border:     isWinner ? "1px solid rgba(52,211,153,0.25)" : "1px solid rgba(255,255,255,0.08)",
+    };
+  }
+  function hoverStyle(store: "newegg" | "amazon", el: HTMLElement, enter: boolean) {
+    const isWinner = resolvedCheaper === store;
+    el.style.background = enter
+      ? (isWinner ? "rgba(52,211,153,0.15)" : "rgba(255,255,255,0.08)")
+      : (isWinner ? "rgba(52,211,153,0.08)" : "rgba(255,255,255,0.04)");
+    el.style.color = enter
+      ? (isWinner ? "#a7f3d0" : "rgba(255,255,255,0.6)")
+      : (isWinner ? "#6ee7b7" : "rgba(255,255,255,0.35)");
+  }
+
+  const neweggLabel = neweggPrice != null ? ` ~$${neweggPrice.toFixed(2)}` : "";
+  const amazonLabel = amazonPrice != null ? ` ~$${amazonPrice.toFixed(2)}` : "";
+  const checkedLabel = hoursAgo(lastChecked);
+
   return (
-    <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-      <a href={newegg} target="_blank" rel="noopener noreferrer"
-        onClick={e => e.stopPropagation()}
-        style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "4px 10px",
-          borderRadius: 6, fontSize: 11, fontWeight: 500, textDecoration: "none",
-          background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.35)",
-          border: "1px solid rgba(255,255,255,0.08)", transition: "all 0.12s" }}
-        onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.background = "rgba(255,255,255,0.08)"; el.style.color = "rgba(255,255,255,0.6)"; }}
-        onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.background = "rgba(255,255,255,0.04)"; el.style.color = "rgba(255,255,255,0.35)"; }}>
-        Newegg{est} ↗
-      </a>
-      <a href={amazon} target="_blank" rel="noopener noreferrer"
-        onClick={e => e.stopPropagation()}
-        style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "4px 10px",
-          borderRadius: 6, fontSize: 11, fontWeight: 500, textDecoration: "none",
-          background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.35)",
-          border: "1px solid rgba(255,255,255,0.08)", transition: "all 0.12s" }}
-        onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.background = "rgba(255,255,255,0.08)"; el.style.color = "rgba(255,255,255,0.6)"; }}
-        onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.background = "rgba(255,255,255,0.04)"; el.style.color = "rgba(255,255,255,0.35)"; }}>
-        Amazon{est} ↗
-      </a>
+    <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 8 }}>
+      <div style={{ display: "flex", gap: 6 }}>
+        <a href={neweggLink} target="_blank" rel="noopener noreferrer"
+          onClick={e => e.stopPropagation()}
+          style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "4px 10px",
+            borderRadius: 6, fontSize: 11, fontWeight: 500, textDecoration: "none",
+            transition: "all 0.15s", ...btnStyle("newegg") }}
+          onMouseEnter={e => hoverStyle("newegg", e.currentTarget as HTMLElement, true)}
+          onMouseLeave={e => hoverStyle("newegg", e.currentTarget as HTMLElement, false)}>
+          Newegg{neweggLabel} ↗
+        </a>
+        <a href={amazonLink} target="_blank" rel="noopener noreferrer"
+          onClick={e => e.stopPropagation()}
+          style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "4px 10px",
+            borderRadius: 6, fontSize: 11, fontWeight: 500, textDecoration: "none",
+            transition: "all 0.15s", ...btnStyle("amazon") }}
+          onMouseEnter={e => hoverStyle("amazon", e.currentTarget as HTMLElement, true)}
+          onMouseLeave={e => hoverStyle("amazon", e.currentTarget as HTMLElement, false)}>
+          Amazon{amazonLabel} ↗
+        </a>
+      </div>
+      {checkedLabel && (
+        <span style={{ fontSize: 10, color: "rgba(255,255,255,0.2)" }}>
+          Price last checked {checkedLabel}
+        </span>
+      )}
     </div>
   );
 }
@@ -753,7 +866,7 @@ function PartModal({ slot, selected, onSelect, onClose }: {
                           {note.icon} {note.text}
                         </p>
                       )}
-                      <BuyButtons name={part.name} staticPrice={(part as any).price} />
+                      <BuyButtons id={isSearchResult ? undefined : (part as AnyPart).id} name={part.name} staticPrice={(part as any).price} />
                     </div>
                     {/* Price + wattage column */}
                     <div style={{ textAlign: "right", flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
@@ -1096,13 +1209,38 @@ export default function Home() {
                         </div>
                         <div>
                           <div style={{ fontSize: 13, fontWeight: 600, color: T.text, marginBottom: 2 }}>{val.name}</div>
-                          <div style={{ fontSize: 11, color: T.textDim, lineHeight: 1.5 }}>{val.reason}</div>
+                          <div style={{ fontSize: 11, color: T.textDim, lineHeight: 1.5, marginBottom: 4 }}>{val.reason}</div>
+                          <BuyButtons name={val.name} staticPrice={val.price} />
                         </div>
                         <div style={{ fontSize: 13, fontWeight: 700, color: T.text, textAlign: "right", paddingTop: 2 }}>
                           ${val.price}
                         </div>
                       </div>
                     ))}
+                    {/* Tax + total footer */}
+                    {(() => {
+                      const sub = aiBuild.totalEstimate ?? 0;
+                      const tax = Math.round(sub * taxRate * 100) / 100;
+                      const total = sub + tax;
+                      return (
+                        <div style={{ borderTop: `2px solid ${T.accent}`, background: T.surfaceHi, padding: "12px 20px", display: "flex", flexDirection: "column", gap: 6 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: T.textDim }}>
+                            <span>Subtotal</span>
+                            <span>${sub.toLocaleString()}</span>
+                          </div>
+                          {taxRate > 0 && (
+                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: T.textDim }}>
+                              <span>Tax ({stateCode} {(taxRate * 100).toFixed(2)}%)</span>
+                              <span>${tax.toFixed(2)}</span>
+                            </div>
+                          )}
+                          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 15, fontWeight: 800, color: T.text, letterSpacing: "-0.02em", paddingTop: 4, borderTop: `1px solid ${T.border}` }}>
+                            <span>Total {taxRate === 0 && <span style={{ fontSize: 11, fontWeight: 400, color: T.textDim }}>(+ local tax)</span>}</span>
+                            <span>${total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 ) : !loading ? (
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "center",
@@ -1180,7 +1318,7 @@ export default function Home() {
                                   {iss.severity === "error" ? "✗" : "△"} {iss.msg}
                                 </div>
                               ))}
-                              <BuyButtons name={picked.name} staticPrice={(picked as any).price} />
+                              <BuyButtons id={(picked as any).id} name={picked.name} staticPrice={(picked as any).price} />
                             </>
                           ) : (
                             <button onClick={() => setOpenSlot(slot)}
